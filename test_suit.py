@@ -2,25 +2,25 @@ import unittest
 import subprocess
 import requests # Note, you may need to install this package via pip (or pip3)
 
-PORT = 13801
+PORT = 8085
 
-localhost = "0.0.0.0" # windows toolbox users will again want to make this the docker machine's ip adress
+localhost = "localhost" # windows toolbox users will again want to make this the docker machine's ip adress
 
 class Client():
 
 	def putKey(self, key, value, port):
-		result = requests.put('http://%s:%s/kv-store/%s'%(localhost, str(port), key), 
+		result = requests.put('http://%s:%s/key-value-store/%s'%(localhost, str(port), key), 
 							json={'value':value},
 							headers = {"Content-Type": "application/json"})
 		return self.formatResult(result)
 	
 	def getKey(self, key, port):
-		result = requests.get('http://%s:%s/kv-store/%s'%(localhost, str(port), key),
+		result = requests.get('http://%s:%s/key-value-store/%s'%(localhost, str(port), key),
 							headers = {"Content-Type": "application/json"})
 		return self.formatResult(result)
 	
 	def deleteKey(self, key, port):
-		result = requests.delete('http://%s:%s/kv-store/%s'%(localhost, str(port), key),
+		result = requests.delete('http://%s:%s/key-value-store/%s'%(localhost, str(port), key),
 							headers = {"Content-Type": "application/json"})
 		return self.formatResult(result)
 
