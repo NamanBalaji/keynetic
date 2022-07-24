@@ -6,12 +6,14 @@ import (
 	"net/http"
 
 	"github.com/NamanBalaji/keynetic/router"
+	"github.com/NamanBalaji/keynetic/router/handler/utils"
 )
 
 const port = "8085"
 
 func main() {
 	routesInit := router.InitRouter()
+	utils.InitStore()
 
 	endpoint := fmt.Sprintf(":%s", port)
 	server := &http.Server{
