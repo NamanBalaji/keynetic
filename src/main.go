@@ -6,13 +6,21 @@ import (
 	"net/http"
 
 	"github.com/NamanBalaji/keynetic/router"
-	"github.com/NamanBalaji/keynetic/router/handler/utils"
+	"github.com/NamanBalaji/keynetic/utils"
+	"github.com/gin-gonic/gin"
 )
 
 const port = "8085"
 
 func main() {
-	routesInit := router.InitRouter()
+	utils.InitEnvVars()
+	var routesInit *gin.Engine
+	if utils.Env.FwdAddr != "" {
+		routesInit = router.InitForwardRouter()
+	} else {
+		routesInit = router.InitMainRouter()
+	}
+
 	utils.InitStore()
 
 	endpoint := fmt.Sprintf(":%s", port)

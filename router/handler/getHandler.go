@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/NamanBalaji/keynetic/router/handler/utils"
+	"github.com/NamanBalaji/keynetic/utils"
 	"github.com/gin-gonic/gin"
 )
 
