@@ -1,378 +1,477 @@
 import unittest
-import subprocess
 import requests
-import sys
 import time
+import os
 
+######################## initialize variables ################################################
+hostname = 'localhost'
+hostBaseUrl = 'http://'+hostname
+subnetName = "assignment3-net"
+subnetAddress = "10.10.0.0/16"
 
-USAGE = '''
-USAGE: python test_suit.py [test-spec]
-* The "test-spec" could be 'Part1' or 'Part2' or the name of some test function like 'Part2.test_a_all_running_request_main'.
-* For the 'Part1' testsuite you need to run your own container on port 8085.
-* For the 'Part2' testsuite, we'll set up three containers and run a set of tests on them.
-'''.strip()
+replica1Ip = "10.10.0.2"
+replica1HostPort = "8082"
+replica1SocketAddress = replica1Ip + ":8085"
 
+replica2Ip = "10.10.0.3"
+replica2HostPort = "8083"
+replica2SocketAddress = replica2Ip + ":8085"
 
-class Part1Const:
-    hostname = 'localhost'  # Windows and Mac users can change this to the docker vm ip
-    portNumber = '8085'
-    baseUrl = 'http://' + hostname + ":" + portNumber
+replica3Ip = "10.10.0.4"
+replica3HostPort = "8084"
+replica3SocketAddress = replica3Ip + ":8085"
 
+view = replica1SocketAddress + "," + replica2SocketAddress + "," + replica3SocketAddress
 
-class Part1(unittest.TestCase):
-
-    def test_a_get_nonexisting_key(self):
-        response = requests.get(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
-
-    def test_b_delete_nonexisting_key(self):
-        response = requests.delete(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in DELETE')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
-
-
-    def test_c_put_nonexistent_key(self):
-        response = requests.put(Part1Const.baseUrl + '/key-value-store/' + "subject1", json={'value': "Data Structures"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(responseInJson['message'], 'Added successfully')
-        self.assertEqual(responseInJson['replaced'], False)
-
-
-    def test_d_get_after_put_nonexisting_key(self):
-        response = requests.get(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Data Structures')
-
-    def test_e_put_existent_key(self):
-        response = requests.put(Part1Const.baseUrl + '/key-value-store/' + "subject1", json={'value': "Distributed Systems"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['message'], 'Updated successfully')
-        self.assertEqual(responseInJson['replaced'], True)
-
-    def test_f_get_after_put_existing_key(self):
-        response = requests.get(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Distributed Systems')
-
-
-    def test_g_delete_existing_key(self):
-        response = requests.delete(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Deleted successfully')
-
-    def test_h_get_after_delete_existing_key(self):
-        response = requests.get(Part1Const.baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
-
-    def test_i_put_key_too_long(self):
-        tooLongKey = '6TLxbmwMTN4hX7L0QX5_NflWH0QKfrTlzcuM5PUQHS52___lCizKbEMxLZHhtfww3KcMoboDLjB6mw_wFfEz5v_TtHqvGOZnk4_8aqHga79BaHXzpU9_IRbdjYdQutAU0HEuji6Ny1Ol_MSaBF4JdT0aiG_N7xAkoPH3AlmVqDN45KDGBz7_YHrLnbLEK11SQxZcKXbFomh9JpH_sbqXIaifqOy4g06Ab0q3WkNfVzx7H0hGhNlkINf5PF12'
-        value = "haha"
-        response = requests.put(Part1Const.baseUrl + '/key-value-store/' + tooLongKey, json={'value': value})
-
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(responseInJson['message'], 'Error in PUT')
-        self.assertEqual(responseInJson['error'], 'Key is too long')
-
-    def test_j_put_key_with_no_value(self):
-        response = requests.put(Part1Const.baseUrl + '/key-value-store/subject1', json={})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(responseInJson['message'], 'Error in PUT')
-        self.assertEqual(responseInJson['error'], 'Value is missing')
-
-
-class Part2Const:
-    subnetName = "mynet"
-    subnetAddress = "10.10.0.0/16"
-
-    mainInstanceName = "main-instance"
-    forwardingInstance1Name = "forwarding-instance1"
-    forwardingInstance2Name = "forwarding-instance2"
-
-    hostname = 'localhost'  # Windows and Mac users can change this to the docker vm ip
-
-    ipAddressMainInstance = "10.10.0.2"
-    hostPortMainInstance = "8086"
-
-    ipAddressForwarding1Instance = "10.10.0.3"
-    hostPortForwarding1Instance = "8087"
-
-    ipAddressForwarding2Instance = "10.10.0.4"
-    hostPortForwarding2Instance = "8088"
-
-
-# docker linux commands
-#
-# * all wait for subprocess to complete
-# * all but `docker build` suppress stdout
-# * all but the removal commands require success
-# * the removal commands require success by default but have an argument which can be set to False to ignore failure
-# * the removal commands additionally suppress stderr
-
-def removeSubnet(subnetName, required=True):
+############################### Docker Linux Commands ###########################################################
+def removeSubnet(subnetName):
     command = "docker network rm " + subnetName
-    subprocess.run(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=required)
+    os.system(command)
+    time.sleep(2)
 
 def createSubnet(subnetAddress, subnetName):
     command  = "docker network create --subnet=" + subnetAddress + " " + subnetName
-    subprocess.check_call(command, stdout=subprocess.DEVNULL, shell=True)
+    os.system(command)
+    time.sleep(2)
 
 def buildDockerImage():
-    command = "docker build -t assignment2-img ."
-    subprocess.check_call(command, shell=True)
+    command = "docker build -t assignment3-img ."
+    os.system(command)
 
-def runMainInstance(hostPortNumber, ipAddress, subnetName, instanceName):
-    command = "docker run -d -p " + hostPortNumber + ":8085 --net=" + subnetName + " --ip=" + ipAddress + " --name=" + instanceName + " assignment2-img"
-    subprocess.check_call(command, shell=True, stdout=subprocess.DEVNULL)
+def runReplica(hostPort, ipAddress, subnetName, instanceName):
+    command = "docker run -d -p " + hostPort + ":8085 --net=" + subnetName + " --ip=" + ipAddress + " --name=" + instanceName + " -e SOCKET_ADDRESS=" + ipAddress + ":8085" + " -e VIEW=" + view + " assignment3-img"
+    os.system(command)
+    time.sleep(20)
 
-def runForwardingInstance(hostPortNumber, ipAddress, subnetName, instanceName, forwardingAddress):
-    command = "docker run -d -p " + hostPortNumber + ":8085 --net=" + subnetName  + " --ip=" + ipAddress + " --name=" + instanceName + " -e FORWARDING_ADDRESS=" + forwardingAddress + " assignment2-img"
-    subprocess.check_call(command, shell=True, stdout=subprocess.DEVNULL)
-
-def stopAndRemoveInstance(instanceName, required=True):
+def stopAndRemoveInstance(instanceName):
     stopCommand = "docker stop " + instanceName
-    subprocess.run(stopCommand, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=required)
-    time.sleep(1)
     removeCommand = "docker rm " + instanceName
-    subprocess.run(removeCommand, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=required)
+    os.system(stopCommand)
+    time.sleep(2)
+    os.system(removeCommand)
 
+def connectToNetwork(subnetName, instanceName):
+    command = "docker network connect " + subnetName + " " + instanceName
+    os.system(command)
 
-class Part2(unittest.TestCase):
+def disconnectFromNetwork(subnetName, instanceName):
+    command = "docker network disconnect " + subnetName + " " + instanceName
+    os.system(command)
 
-    ######################## Functions to send the required requests ##########################################
-    def send_all_requests(self, baseUrl):
-        # get nonexistent key
-        response = requests.get(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
+############################### View Comparison Function ###########################################################
+def compareViews(returnedView, expectedView):
+    expectedView = expectedView.split(',')
+    if (type(returnedView) is not list):
+        returnedView = returnedView.split(',')
+    else:
+        returnedView = returnedView
+    returnedView.sort()
+    expectedView.sort()
+    return returnedView == expectedView
 
-        # delete nonexistent key
-        response = requests.delete(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in DELETE')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
+################################# Unit Test Class ############################################################
 
-        # put nonexistent key
-        response = requests.put(baseUrl + '/key-value-store/' + "subject1", json={'value': "Data Structures"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(responseInJson['message'], 'Added successfully')
-        self.assertEqual(responseInJson['replaced'], False)
+class TestHW3(unittest.TestCase):
 
-        # get after putting nonexistent key
-        response = requests.get(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Data Structures')
-
-        # put existent key
-        response = requests.put(baseUrl + '/key-value-store/' + "subject1", json={'value': "Distributed Systems"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['message'], 'Updated successfully')
-        self.assertEqual(responseInJson['replaced'], True)
-
-        # get after putting existent key
-        response = requests.get(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Distributed Systems')
-
-        # delete existent key
-        response = requests.delete(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Deleted successfully')
-
-        # get after deleting key
-        response = requests.get(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
-
-        # put key with no value
-        response = requests.put(baseUrl + '/key-value-store/subject1', json={})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(responseInJson['message'], 'Error in PUT')
-        self.assertEqual(responseInJson['error'], 'Value is missing')
-
-    def send_forwarding12_requests(self, baseUrl1, baseUrl2):
-        # put nonexistent key
-        response = requests.put(baseUrl1 + '/key-value-store/' + "subject1", json={'value': "Data Structures"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(responseInJson['message'], 'Added successfully')
-        self.assertEqual(responseInJson['replaced'], False)
-
-        # get after putting nonexistent key
-        response = requests.get(baseUrl2 + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Data Structures')
-
-        # put existent key
-        response = requests.put(baseUrl2 + '/key-value-store/' + "subject1", json={'value': "Distributed Systems"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['message'], 'Updated successfully')
-        self.assertEqual(responseInJson['replaced'], True)
-
-        # get after putting existent key
-        response = requests.get(baseUrl1 + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Retrieved successfully')
-        self.assertEqual(responseInJson['value'], 'Distributed Systems')
-
-        # delete existent key
-        response = requests.delete(baseUrl1 + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(responseInJson['doesExist'], True)
-        self.assertEqual(responseInJson['message'], 'Deleted successfully')
-
-        # get after deleting key
-        response = requests.get(baseUrl2 + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(responseInJson['doesExist'], False)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Key does not exist')
-
-    def send_requests_forwarding_while_main_stopped(self, baseUrl):
-
-        # put nonexistent key
-        response = requests.put(baseUrl + '/key-value-store/' + "subject1", json={'value': "Data Structures"})
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(responseInJson['message'], 'Error in PUT')
-        self.assertEqual(responseInJson['error'], 'Main instance is down')
-
-
-        # get after putting nonexistent key
-        response = requests.get(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(responseInJson['message'], 'Error in GET')
-        self.assertEqual(responseInJson['error'], 'Main instance is down')
-
-        # delete existent key
-        response = requests.delete(baseUrl + '/key-value-store/subject1')
-        responseInJson = response.json()
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(responseInJson['message'], 'Error in DELETE')
-        self.assertEqual(responseInJson['error'], 'Main instance is down')
+    ######################## Build docker image and create subnet ################################
+    
 
     ########################## Run tests #######################################################
-    def test_a_all_running_request_main(self):
-        print("=== Sending requests to main instance..")
-        baseUrl = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortMainInstance
-        self.send_all_requests(baseUrl)
+    def test_a_view_operations(self):
 
-    def test_b_all_running_request_forwarding1(self):
-        print("=== Sending requests the first forwarding instance..")
-        baseUrl = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding1Instance
-        self.send_all_requests(baseUrl)
+    
 
-    def test_c_all_running_request_forwarding2(self):
-        print("=== Sending requests to the second forwarding instance..")
-        baseUrl = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding2Instance
-        self.send_all_requests(baseUrl)
+        print("\n###################### Getting the view from replicas ######################\n")
+        # get the view from replica1
+        baseUrl = hostBaseUrl + ':' + replica1HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
 
-    def test_d_all_running_request_forwarding12(self):
-        print("=== Sending requests to both forwarding instances..")
-        baseUrl1 = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding1Instance
-        baseUrl2 = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding2Instance
-        self.send_forwarding12_requests(baseUrl1, baseUrl2)
+        # get the view from replica2
+        baseUrl = hostBaseUrl + ':' + replica2HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
 
-    def test_e_main_stopped_request_forwarding12(self):
-        print("=== Destroying just the main instance..")
-        stopAndRemoveInstance(Part2Const.mainInstanceName)
+        # get the view from replica3
+        baseUrl = hostBaseUrl + ':' + replica3HostPort + '/key-value-store-view'
+        response = requests.get(baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
 
-        print("=== Sending requests to both forwarding instances (while main instance is stopped)..")
-        baseUrl1 = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding1Instance
-        baseUrl2 = 'http://' + Part2Const.hostname + ':' + Part2Const.hostPortForwarding2Instance
-        self.send_requests_forwarding_while_main_stopped(baseUrl1)
-        self.send_requests_forwarding_while_main_stopped(baseUrl2)
+        print("\n###################### Putting key1/value1 to the store ######################\n")
+        # put a new key in the store
+        baseUrl = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/key1'
+        response = requests.put(baseUrl, json={'value': "value1", "causal-metadata": ""})
+        first_put_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 201)
 
-        print("=== Running just the main instance..")
-        runMainInstance(Part2Const.hostPortMainInstance, Part2Const.ipAddressMainInstance, Part2Const.subnetName, Part2Const.mainInstanceName)
+        print("\n###################### Waiting for 10 seconds ######################\n")
+        time.sleep(10)
 
-    ############ Test suite lifecycle: setUpClass [setUp test tearDown]* tearDownClass #########
-    @classmethod
-    def setUpClass(cls):
-        print('= Cleaning-up containers and subnet, possibly leftover from a previous interrupted run..')
-        stopAndRemoveInstance(Part2Const.mainInstanceName, required=False)
-        stopAndRemoveInstance(Part2Const.forwardingInstance1Name, required=False)
-        stopAndRemoveInstance(Part2Const.forwardingInstance2Name, required=False)
-        # Prevent "Error response from daemon: error while removing network: network assignment2-net id ... has active endpoints"
-        time.sleep(5)
-        removeSubnet(Part2Const.subnetName, required=False)
-        print('= Creating image and subnet..')
-        buildDockerImage()
-        createSubnet(Part2Const.subnetAddress, Part2Const.subnetName)
+        print("\n###################### Getting key1 from the replicas ######################\n")
+
+        # get the value of the new key from replica1 after putting the new key
+        baseUrl = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/key1'
+        response = requests.get(baseUrl, json={"causal-metadata": first_put_metadata })
+        responseInJson = response.json()
+        first_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value1')
+
+        # get the value of the new key from replica2 after putting the new key
+        baseUrl = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/key1'
+        response = requests.get(baseUrl, json={"causal-metadata": first_get_metadata})
+        responseInJson = response.json()
+        second_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value1')
+
+        # get the value of the new key from replica3 after putting the new key
+        baseUrl = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/key1'
+        response = requests.get(baseUrl, json={"causal-metadata":second_get_metadata})
+        responseInJson = response.json()
+        third_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value1')
+
+        print("\n###################### Stopping and removing replica3 ######################\n")
+        stopAndRemoveInstance("replica3")
+
+        print("\n###################### Waiting for 10 seconds ######################\n")
+        time.sleep(10)
+
+        print("\n###################### Putting key2/value2 to the store ######################\n")
+        # put a new key in the store
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/key2'
+        response = requests.put(baseUrl, json={'value': "value2", "causal-metadata": third_get_metadata})
+        second_put_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 201)
+
+        print("\n###################### Waiting for 50 seconds ######################\n")
+        time.sleep(50)
+
+        print("\n###################### Getting key2 from the replica1 and replica2 ######################\n")
+
+        # get the value of the new key from replica1 after putting the new key
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/key2'
+        response = requests.get(baseUrl, json={"causal-metadata": second_put_metadata })
+        responseInJson = response.json()
+        fourth_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value2')
+
+        # get the value of the new key from replica2 after putting the new key
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/key2'
+        response = requests.get(baseUrl, json={"causal-metadata":fourth_get_metadata})
+        responseInJson = response.json()
+        fifth_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value2')
+
+
+        print("\n###################### Getting the view from replica1 and replica2 ######################\n")
+        # get the view from replica1
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], replica1SocketAddress + "," + replica2SocketAddress))
+
+        # get the view from replica2
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], replica1SocketAddress + "," + replica2SocketAddress))
+
+        print("\n###################### Starting replica3 ######################\n")
+        runReplica(replica3HostPort, replica3Ip, subnetName, "replica3")
+
+        print("\n###################### Waiting for 50 seconds ######################\n")
+        time.sleep(50)
+
+        print("\n###################### Getting the view from replicas ######################\n")
+        # get the view from replica1
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store-view'
+
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
+
+        # get the view from replica2
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
+
+        # get the view from replica3
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store-view'
+        response = requests.get( baseUrl)
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(compareViews(responseInJson['view'], view))
+
+        print("\n###################### Getting key1 and key2 from replica3 ######################\n")
+
+        # get the value of the new key from replica3 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/key1'
+        response = requests.get(baseUrl, json={'causal-metadata':fifth_get_metadata})
+        responseInJson = response.json()
+        sixth_get_metadata = response.json()['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value1')
+
+        # get the value of the new key from replica2 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/key2'
+        response = requests.get(baseUrl, json={"causal-metadata":sixth_get_metadata})
+        responseInJson = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(responseInJson['value'], 'value2')
+
+    ########################## Availability Test #######################################################
+    def test_b_availability(self):
+    
+        print("\n###################### Disconnecting replica2 from the network ######################\n")
+        disconnectFromNetwork(subnetName, "replica2")
+        time.sleep(1)
+
+        print("\n###################### Disconnecting replica3 from the network ######################\n")
+        disconnectFromNetwork(subnetName, "replica3")
+        time.sleep(1)
+
+        print("\n###################### Putting key/myvalue to the store ######################\n")
+
+        # put a new key in the store
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/key'
+        response = requests.put(baseUrl, json={"value": "myvalue", "causal-metadata": ""})
+        responseInJson = response.json()
+
+        put_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 201)
+
+    ########################## Key/Value Tests #######################################################
+    def test_c_key_value_operations(self):
+
+        
+
+        print("\n###################### Putting mykey1/myvalue1 to the store ######################\n")
+
+        # put a new key in the store
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/mykey1'
+        response = requests.put(baseUrl, json={"value": "myvalue1", "causal-metadata": ""})
+        responseInJson = response.json()
+
+        put_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 201)
+
+        print("\n###################### Getting mykey1 from replica1 ######################\n")
+
+        # get the value of the new key from replica1 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={"causal-metadata":put_causal_metadata})
+        responseInJson = response.json()
+
+        first_get_value = responseInJson['value']
+        first_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(first_get_value, 'myvalue1')
+        self.assertEqual(first_get_causal_metadata, put_causal_metadata)
+
+        time.sleep(10)
+
+        print("\n###################### Getting mykey1 from replica2 ######################\n")
+
+        # get the value of the new key from replica2 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={'causal-metadata':first_get_causal_metadata})
+        responseInJson = response.json()
+
+        second_get_value = responseInJson['value']
+        second_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(second_get_value, 'myvalue1')
+        self.assertEqual(second_get_causal_metadata, first_get_causal_metadata)
+
+        print("\n###################### Getting mykey1 from replica3 ######################\n")
+
+        # get the value of the new key from replica3 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={'causal-metadata':second_get_causal_metadata})
+        responseInJson = response.json()
+
+        third_get_value = responseInJson['value']
+        third_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(third_get_value, 'myvalue1')
+        self.assertEqual(third_get_causal_metadata, second_get_causal_metadata)
+
+
+        print("\n###################### Putting mykey1/myvalue2 to the store ######################\n")
+
+        # put a new key in the store
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/mykey1'
+        response = requests.put(baseUrl, json={"value": "myvalue2", "causal-metadata": third_get_causal_metadata})
+        responseInJson = response.json()
+        second_put_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+
+        print("\n###################### Getting mykey1 from replica1 ######################\n")
+
+        # get the value of the new key from replica1 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={"causal-metadata":second_put_causal_metadata})
+        responseInJson = response.json()
+
+        fourth_get_value = responseInJson['value']
+        fourth_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(fourth_get_value, 'myvalue2')
+        self.assertEqual(fourth_get_causal_metadata, second_put_causal_metadata)
+
+        time.sleep(10)
+
+        print("\n###################### Getting mykey1 from replica2 ######################\n")
+
+        # get the value of the new key from replica2 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={"causal-metadata":fourth_get_causal_metadata})
+        responseInJson = response.json()
+
+        fifth_get_value = responseInJson['value']
+        fifth_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(fifth_get_value, 'myvalue2')
+        self.assertEqual(fifth_get_causal_metadata, fourth_get_causal_metadata)
+
+        print("\n###################### Getting mykey1 from replica3 ######################\n")
+
+        # get the value of the new key from replica2 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/mykey1'
+        response = requests.get(baseUrl, json={"causal-metadata":fifth_get_causal_metadata})
+        responseInJson = response.json()
+
+        sixth_get_value = responseInJson['value']
+        sixth_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(sixth_get_value, 'myvalue2')
+        self.assertEqual(sixth_get_causal_metadata, fifth_get_causal_metadata)
+
+    ########################## Run tests #######################################################
+    def test_d_causal_consistency(self):
+
+        print("\n###################### Disconnecting replica2 from the network ######################\n")
+        disconnectFromNetwork(subnetName, "replica2")
+        time.sleep(0.5)
+
+        print("\n###################### Putting k1/foo to the store ######################\n")
+
+        # put a new key in the store
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/k1'
+        response = requests.put(baseUrl, json={"value": "foo", "causal-metadata": ""})
+        responseInJson = response.json()
+
+        first_put_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 201)
+
+        print("\n###################### Connecting replica2 to the network ######################\n")
+        connectToNetwork(subnetName, "replica2")
+
+        print("\n###################### Putting k1/bar to the store ######################\n")
+
+        # put  key1/bar in the store
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/k1'
+        response = requests.put(baseUrl, json={"value": "bar", "causal-metadata": first_put_causal_metadata})
+
+        responseInJson = response.json()
+        second_put_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+
+        time.sleep(20)
+
+        print("\n###################### Getting k1 from replica1 ######################\n")
+
+        # get the value of the new key from replica1 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store/k1'
+        response = requests.get(baseUrl, json={"causal-metadata":second_put_causal_metadata})
+        responseInJson = response.json()
+
+        first_get_value = responseInJson['value']
+        first_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(first_get_value, 'bar')
+        self.assertEqual(first_get_causal_metadata, second_put_causal_metadata)
+
+        print("\n###################### Getting k1 from replica2 ######################\n")
+
+        # get the value of the new key from replica1 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store/k1'
+        response = requests.get(baseUrl, json={"causal-metadata":first_get_causal_metadata})
+        responseInJson = response.json()
+
+        second_get_value = responseInJson['value']
+        second_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(second_get_value, 'bar')
+        self.assertEqual(second_get_causal_metadata, first_get_causal_metadata)
+
+        print("\n###################### Getting k1 from replica3 ######################\n")
+
+        # get the value of the new key from replica1 after putting a new key
+        baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store/k1'
+        response = requests.get(baseUrl, json={"causal-metadata":second_get_causal_metadata})
+        responseInJson = response.json()
+
+        third_get_value = responseInJson['value']
+        third_get_causal_metadata = responseInJson['causal-metadata']
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(third_get_value, 'bar')
+        self.assertEqual(third_get_causal_metadata, second_get_causal_metadata)
 
     def setUp(self):
-        print("\n== Running containers..")
-        runMainInstance(Part2Const.hostPortMainInstance, Part2Const.ipAddressMainInstance, Part2Const.subnetName, Part2Const.mainInstanceName)
-        runForwardingInstance(Part2Const.hostPortForwarding1Instance, Part2Const.ipAddressForwarding1Instance, Part2Const.subnetName, Part2Const.forwardingInstance1Name, Part2Const.ipAddressMainInstance + ":8085" )
-        runForwardingInstance(Part2Const.hostPortForwarding2Instance, Part2Const.ipAddressForwarding2Instance, Part2Const.subnetName, Part2Const.forwardingInstance2Name, Part2Const.ipAddressMainInstance + ":8085" )
-        # Ensure that processes in the containers have time to start up and listen on ports
+        print("\n###################### Running replicas ######################\n")
+        runReplica(replica1HostPort, replica1Ip, subnetName, "replica1")
+        runReplica(replica2HostPort, replica2Ip, subnetName, "replica2")
+        runReplica(replica3HostPort, replica3Ip, subnetName, "replica3")
         time.sleep(5)
 
     def tearDown(self):
         print("== Destroying containers..")
-        stopAndRemoveInstance(Part2Const.mainInstanceName)
-        stopAndRemoveInstance(Part2Const.forwardingInstance1Name)
-        stopAndRemoveInstance(Part2Const.forwardingInstance2Name)
+        stopAndRemoveInstance("replica1")
+        stopAndRemoveInstance("replica2")
+        stopAndRemoveInstance("replica3")
 
+    
+    @classmethod
+    def setUpClass(cls):
+        print('= Cleaning-up containers and subnet, possibly leftover from a previous interrupted run..')
+        print("\nCleaning up replica1 ...")
+        stopAndRemoveInstance("replica1")
+        print("Cleaning up replica2 ...")
+        stopAndRemoveInstance("replica2")
+        print("Cleaning up replica3 ...")
+        stopAndRemoveInstance("replica3")
+        print("Cleaning up", subnetName, "...")
+        print("Done cleaning up.")
+        print("###################### Building Docker image ######################\n")
+        # build docker image
+        buildDockerImage()
+        print("\n###################### Creating the subnet ######################\n")
+        removeSubnet(subnetName)
+        createSubnet(subnetAddress, subnetName)
+
+    
     @classmethod
     def tearDownClass(cls):
-        print('= Destroying subnet..')
-        removeSubnet(Part2Const.subnetName)
-
+        print("Cleaning up", subnetName, "...")
+        removeSubnet(subnetName)
+        print("Done cleaning up.")
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        print(USAGE)
-        sys.exit(1)
-    else:
-        unittest.main(verbosity=2)
+    unittest.main()
