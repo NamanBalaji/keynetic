@@ -3,7 +3,9 @@ package router
 import (
 	"net/http"
 
-	"github.com/NamanBalaji/keynetic/router/handler"
+	"github.com/NamanBalaji/keynetic/router/broadcast_handler"
+	"github.com/NamanBalaji/keynetic/router/kv_handler"
+	"github.com/NamanBalaji/keynetic/router/views_handler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,25 +19,14 @@ func InitMainRouter() *gin.Engine {
 
 	kvApi := r.Group("/key-value-store")
 	{
-		kvApi.GET("/:key", handler.GetHandler)
-		kvApi.DELETE("/:key", handler.DeleteHandler)
-		kvApi.PUT("/:key", handler.PutHandler)
+		kvApi.GET("/:key", kv_handler.GetHandler)
+		kvApi.DELETE("/:key", kv_handler.DeleteHandler)
+		kvApi.PUT("/:key", kv_handler.PutHandler)
 	}
-	return r
-}
 
-func InitForwardRouter() *gin.Engine {
-	r := gin.Default()
+	r.DELETE("/broadcast-delete/:ip", broadcast_handler.BroadcastDelete)
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "I'm forwarding server"})
-	})
+	r.GET("/key-value-store-view", views_handler.GetViewHandler)
 
-	kvApi := r.Group("/key-value-store")
-	{
-		kvApi.GET("/:key", handler.ForwardHandler)
-		kvApi.DELETE("/:key", handler.ForwardHandler)
-		kvApi.PUT("/:key", handler.ForwardHandler)
-	}
 	return r
 }

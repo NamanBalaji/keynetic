@@ -7,19 +7,14 @@ import (
 
 	"github.com/NamanBalaji/keynetic/router"
 	"github.com/NamanBalaji/keynetic/utils"
-	"github.com/gin-gonic/gin"
 )
 
 const port = "8085"
 
 func main() {
 	utils.InitEnvVars()
-	var routesInit *gin.Engine
-	if utils.Env.FwdAddr != "" {
-		routesInit = router.InitForwardRouter()
-	} else {
-		routesInit = router.InitMainRouter()
-	}
+
+	routesInit := router.InitMainRouter()
 
 	utils.InitStore()
 

@@ -1,4 +1,4 @@
-package handler
+package kv_handler
 
 import (
 	"encoding/json"
