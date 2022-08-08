@@ -17,12 +17,8 @@ type getViewSucces struct {
 	View    string `json:"view,omitempty"`
 }
 
-// type getViewFail struct {
-// 	Message string `json:"message,omitempty"`
-// 	Error   string `json:"error,omitempty"`
-// }
-
 func GetViewHandler(c *gin.Context) {
+
 	// send heartbeat to each view
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
