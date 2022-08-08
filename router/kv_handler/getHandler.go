@@ -40,3 +40,7 @@ func GetHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, resp)
 }
+
+func GetStoreHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, utils.Store.Database)
+}

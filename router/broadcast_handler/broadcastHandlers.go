@@ -18,3 +18,16 @@ func BroadcastDelete(c *gin.Context) {
 		return
 	}
 }
+
+func BroadcastPut(c *gin.Context) {
+	ip := c.Param("ip")
+	_, ok := utils.Contains(ip)
+	if ok {
+		c.JSON(http.StatusOK, gin.H{"message": "view already added"})
+		return
+	} else {
+		utils.Views = append(utils.Views, ip)
+		c.JSON(http.StatusOK, gin.H{"message": "view added successfully"})
+		return
+	}
+}
