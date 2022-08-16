@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"os"
+	"strings"
 
+	"github.com/NamanBalaji/keynetic/requests"
 	"github.com/NamanBalaji/keynetic/router"
 	"github.com/NamanBalaji/keynetic/utils"
 )
@@ -15,11 +16,14 @@ import (
 const port = "8085"
 
 func main() {
-	utils.InitEnvVars()
+
+	views := strings.Split(os.Getenv("VIEWS"), ",")
+	socketAddr := os.Getenv("SOCKET_ADDRESS")
+
+	utils.InitViews(views, socketAddr)
+	utils.InitStore()
 
 	routesInit := router.InitMainRouter()
-
-	utils.InitStore()
 
 	endpoint := fmt.Sprintf(":%s", port)
 	server := &http.Server{
@@ -28,32 +32,22 @@ func main() {
 	}
 
 	// send put request to all replicas
-	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
-
-	for _, replica := range utils.Views {
-		if replica != utils.SocketAddr {
-			url := fmt.Sprintf("http://%s/broadcast-put/%s", replica, utils.SocketAddr)
-			req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, nil)
-			_, _ = http.DefaultClient.Do(req)
+	for _, replica := range utils.View.Views {
+		if replica != utils.View.SocketAddr {
+			requests.BroadcastPutView(replica, utils.View.SocketAddr)
 		}
 	}
-	can()
 
 	// ask for a replicas key value store
-	ctx, can = context.WithTimeout(context.Background(), 1*time.Second)
-
-	for _, replica := range utils.Views {
-		if replica != utils.SocketAddr {
-			url := fmt.Sprintf("http://%s/store", replica)
-			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-			res, err := http.DefaultClient.Do(req)
+	for _, replica := range utils.View.Views {
+		if replica != utils.View.SocketAddr {
+			res, err := requests.GetKeyValueStore(replica)
 			if err != nil {
 				json.NewDecoder(res.Body).Decode(&utils.Store.Database)
 				break
 			}
 		}
 	}
-	can()
 
 	log.Printf("HTTP server started on port %s", endpoint)
 	_ = server.ListenAndServe()

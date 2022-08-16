@@ -3,9 +3,7 @@ package router
 import (
 	"net/http"
 
-	"github.com/NamanBalaji/keynetic/router/broadcast_handler"
-	"github.com/NamanBalaji/keynetic/router/kv_handler"
-	"github.com/NamanBalaji/keynetic/router/views_handler"
+	"github.com/NamanBalaji/keynetic/router/handlers"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,18 +17,18 @@ func InitMainRouter() *gin.Engine {
 
 	kvApi := r.Group("/key-value-store")
 	{
-		kvApi.GET("/:key", kv_handler.GetHandler)
-		kvApi.DELETE("/:key", kv_handler.DeleteHandler)
-		kvApi.PUT("/:key", kv_handler.PutHandler)
+		kvApi.GET("/:key", handlers.GetKVHandler)
+		kvApi.DELETE("/:key", handlers.DeleteKVHandler)
+		kvApi.PUT("/:key", handlers.PutKVHandler)
 	}
-	r.GET("/store", kv_handler.GetStoreHandler)
+	r.GET("/store", handlers.GetStoreHandler)
 
-	r.PUT("/broadcast-put/:ip", broadcast_handler.BroadcastPut)
-	r.DELETE("/broadcast-delete/:ip", broadcast_handler.BroadcastDelete)
+	r.PUT("/broadcast-view/:ip", handlers.BroadcastViewPut)
+	r.DELETE("/broadcast-view/:ip", handlers.BroadcastViewDelete)
 
-	r.GET("/key-value-store-view", views_handler.GetViewHandler)
-	r.PUT("/key-value-store-view", views_handler.PutViewsHandler)
-	r.DELETE("/key-value-store-view", views_handler.DeleteViewHandler)
+	r.GET("/key-value-store-view", handlers.GetViewHandler)
+	r.PUT("/key-value-store-view", handlers.PutViewHandler)
+	r.DELETE("/key-value-store-view", handlers.DeleteViewHandler)
 
 	return r
 }
