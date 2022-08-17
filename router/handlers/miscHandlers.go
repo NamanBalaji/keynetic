@@ -26,7 +26,7 @@ func GetStoreHandler(c *gin.Context) {
 // Handler for GET: /vector-clock
 func GetVectorClock(c *gin.Context) {
 	resp := GetVectorClockResponse{
-		VectorClock: *utils.Vc,
+		VectorClock: utils.Vc,
 	}
 	c.JSON(http.StatusOK, resp)
 }
