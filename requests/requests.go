@@ -65,3 +65,12 @@ func GetKeyValueStore(addr string) (*http.Response, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	return http.DefaultClient.Do(req)
 }
+
+func GetVectorClock(addr string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/vector-clock", addr)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}

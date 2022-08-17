@@ -21,7 +21,9 @@ func InitMainRouter() *gin.Engine {
 		kvApi.DELETE("/:key", handlers.DeleteKVHandler)
 		kvApi.PUT("/:key", handlers.PutKVHandler)
 	}
+
 	r.GET("/store", handlers.GetStoreHandler)
+	r.GET("/vector-clock", handlers.GetVectorClock)
 
 	r.PUT("/broadcast-view/:ip", handlers.BroadcastViewPut)
 	r.DELETE("/broadcast-view/:ip", handlers.BroadcastViewDelete)

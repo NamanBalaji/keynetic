@@ -144,8 +144,3 @@ func PutKVHandler(c *gin.Context) {
 		return
 	}
 }
-
-// Handler for GET: /store
-func GetStoreHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, utils.Store.Database)
-}
