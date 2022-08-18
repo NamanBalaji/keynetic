@@ -10,7 +10,7 @@ import (
 
 	"github.com/NamanBalaji/keynetic/requests"
 	"github.com/NamanBalaji/keynetic/router"
-	"github.com/NamanBalaji/keynetic/router/handlers"
+	"github.com/NamanBalaji/keynetic/types"
 	"github.com/NamanBalaji/keynetic/utils"
 )
 
@@ -40,7 +40,7 @@ func main() {
 		}
 	}
 
-	var storeRes handlers.GetStoreResponse
+	var storeRes types.GetStoreResponse
 	// ask for a replicas key value store
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {
@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 
-	var vectorClockRes handlers.GetVectorClockResponse
+	var vectorClockRes types.GetVectorClockResponse
 	// ask for a replicas vector clock
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {

@@ -8,32 +8,10 @@ import (
 	"strings"
 
 	"github.com/NamanBalaji/keynetic/requests"
+	"github.com/NamanBalaji/keynetic/types"
 	"github.com/NamanBalaji/keynetic/utils"
 	"github.com/gin-gonic/gin"
 )
-
-type getViewSucces struct {
-	Message string `json:"message,omitempty"`
-	View    string `json:"view,omitempty"`
-}
-
-type deleteViewSucces struct {
-	Message string `json:"message,omitempty"`
-}
-
-type deleteViewFail struct {
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
-type putViewSucces struct {
-	Message string `json:"message,omitempty"`
-}
-
-type putViewFail struct {
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
 
 // Handler function for GET: /key-value-store-view
 func GetViewHandler(c *gin.Context) {
@@ -52,7 +30,7 @@ func GetViewHandler(c *gin.Context) {
 		}
 	}
 
-	resp := getViewSucces{
+	resp := types.GetViewSucces{
 		Message: "View retrieved successfully",
 		View:    fmt.Sprint(strings.Join(utils.View.Views[:], ",")),
 	}
@@ -71,7 +49,7 @@ func DeleteViewHandler(c *gin.Context) {
 
 	//if addr not present in views return error response
 	if !ok {
-		resp := deleteViewFail{
+		resp := types.DeleteViewFail{
 			Message: "Socket address does not exist in the view",
 			Error:   "Error in DELETE",
 		}
@@ -93,7 +71,7 @@ func DeleteViewHandler(c *gin.Context) {
 
 	removeDeadReplicasAndBroadcastDelete(downInstances)
 
-	resp := deleteViewSucces{
+	resp := types.DeleteViewSucces{
 		Message: "Replica deleted successfully from the view",
 	}
 	c.JSON(http.StatusOK, resp)
@@ -108,7 +86,7 @@ func PutViewHandler(c *gin.Context) {
 	// if address already present in view return error response
 	_, ok := utils.View.Contains(addr)
 	if ok {
-		resp := putViewFail{
+		resp := types.PutViewFail{
 			Message: "Socket address already exists in the view",
 			Error:   "Error in PUT",
 		}
@@ -127,7 +105,7 @@ func PutViewHandler(c *gin.Context) {
 	removeDeadReplicasAndBroadcastDelete(downInstances)
 
 	utils.View.AddToView(addr)
-	resp := putViewSucces{
+	resp := types.PutViewSucces{
 		Message: "Replica added successfully to the view",
 	}
 	c.JSON(http.StatusOK, resp)

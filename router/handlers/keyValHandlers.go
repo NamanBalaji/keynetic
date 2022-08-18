@@ -6,46 +6,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/NamanBalaji/keynetic/types"
 	"github.com/NamanBalaji/keynetic/utils"
 	"github.com/gin-gonic/gin"
 )
-
-type getSuccesResp struct {
-	Exists  bool   `json:"doesExist"`
-	Message string `json:"message,omitempty"`
-	Value   string `json:"value,omitempty"`
-}
-
-type getFailResp struct {
-	Exists  bool   `json:"doesExist"`
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
-type deleteSuccesResp struct {
-	Exists  bool   `json:"doesExist"`
-	Message string `json:"message,omitempty"`
-}
-
-type delteFailResp struct {
-	Exists  bool   `json:"doesExist"`
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
-type putRequest struct {
-	Value string `json:"value"`
-}
-
-type putSuccesResp struct {
-	Replaced bool   `json:"replaced"`
-	Message  string `json:"message,omitempty"`
-}
-
-type putFailResp struct {
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
 
 // Handler for GET: /key-value-store/<key>
 func GetKVHandler(c *gin.Context) {
@@ -53,7 +17,7 @@ func GetKVHandler(c *gin.Context) {
 	key := c.Param("key")
 	val, err := utils.Store.Get(key)
 	if err != nil {
-		resp := getFailResp{
+		resp := types.GetFailResp{
 			Exists:  false,
 			Error:   "Key does not exist",
 			Message: "Error in GET",
@@ -62,7 +26,7 @@ func GetKVHandler(c *gin.Context) {
 		return
 	}
 
-	resp := getSuccesResp{
+	resp := types.GetSuccesResp{
 		Exists:  true,
 		Message: "Retrieved successfully",
 		Value:   val,
@@ -76,7 +40,7 @@ func DeleteKVHandler(c *gin.Context) {
 	key := c.Param("key")
 	err := utils.Store.Delete(key)
 	if err != nil {
-		resp := delteFailResp{
+		resp := types.DeleteFailResp{
 			Exists:  false,
 			Message: "Error in DELETE",
 			Error:   "Key does not exist",
@@ -85,7 +49,7 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 
-	resp := deleteSuccesResp{
+	resp := types.DeleteSuccesResp{
 		Message: "Deleted successfully",
 		Exists:  true,
 	}
@@ -97,7 +61,7 @@ func PutKVHandler(c *gin.Context) {
 	key := c.Param("key")
 
 	if len(key) > 50 {
-		resp := putFailResp{
+		resp := types.PutFailResp{
 			Error:   "Key is too long",
 			Message: "Error in PUT",
 		}
@@ -111,7 +75,7 @@ func PutKVHandler(c *gin.Context) {
 		return
 	}
 
-	var body putRequest
+	var body types.PutRequest
 	err = json.Unmarshal(jsonData, &body)
 	if err != nil {
 		log.Printf("invalid body format [ERROR]: %s", err)
@@ -119,7 +83,7 @@ func PutKVHandler(c *gin.Context) {
 	}
 
 	if body.Value == "" {
-		resp := putFailResp{
+		resp := types.PutFailResp{
 			Error:   "Value is missing",
 			Message: "Error in PUT",
 		}
@@ -129,14 +93,14 @@ func PutKVHandler(c *gin.Context) {
 
 	replaced, _ := utils.Store.Put(key, body.Value)
 	if replaced {
-		resp := putSuccesResp{
+		resp := types.PutSuccesResp{
 			Message:  "Updated successfully",
 			Replaced: replaced,
 		}
 		c.JSON(http.StatusOK, resp)
 		return
 	} else {
-		resp := putSuccesResp{
+		resp := types.PutSuccesResp{
 			Message:  "Added successfully",
 			Replaced: replaced,
 		}
