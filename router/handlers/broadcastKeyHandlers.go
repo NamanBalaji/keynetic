@@ -26,7 +26,7 @@ func BroadcastKeyPut(c *gin.Context) {
 		return
 	}
 
-	for key, val := range body.CausalMetadata {
+	for key, val := range utils.StringToMap(body.CausalMetadata) {
 		utils.Vc[key] = val
 	}
 	key := c.Param("key")
@@ -85,7 +85,7 @@ func BroadcastKeyDelete(c *gin.Context) {
 		return
 	}
 
-	for key, val := range body.CausalMetadata {
+	for key, val := range utils.StringToMap(body.CausalMetadata) {
 		utils.Vc[key] = val
 	}
 	key := c.Param("key")

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -28,7 +27,7 @@ func GetKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(body.CausalMetadata)
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
 	key := c.Param("key")
 	val, err := utils.Store.Get(key)
 	if err != nil {
@@ -46,7 +45,7 @@ func GetKVHandler(c *gin.Context) {
 		Exists:         true,
 		Message:        "Retrieved successfully",
 		Value:          val,
-		CausalMetadata: utils.Vc,
+		CausalMetadata: utils.MapToString(utils.Vc),
 	}
 	c.JSON(http.StatusOK, resp)
 
@@ -67,7 +66,7 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(body.CausalMetadata)
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
 
 	key := c.Param("key")
 
@@ -83,13 +82,13 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCDeleteSteps(key, utils.Vc)
+	incrementVCDeleteSteps(key, utils.MapToString(utils.Vc))
 	utils.Store.Delete(key)
 
 	resp := types.DeleteSuccesResp{
 		Message:        "Deleted successfully",
 		Exists:         true,
-		CausalMetadata: utils.Vc,
+		CausalMetadata: utils.MapToString(utils.Vc),
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -109,7 +108,7 @@ func PutKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(body.CausalMetadata)
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
 
 	key := c.Param("key")
 
@@ -136,12 +135,12 @@ func PutKVHandler(c *gin.Context) {
 	replaced, _ := utils.Store.Put(key, body.Value)
 
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCPutSteps(key, body.Value, utils.Vc)
+	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc))
 	if replaced {
 		resp := types.PutSuccesResp{
 			Message:        "Updated successfully",
 			Replaced:       replaced,
-			CausalMetadata: utils.Vc,
+			CausalMetadata: utils.MapToString(utils.Vc),
 		}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -149,7 +148,7 @@ func PutKVHandler(c *gin.Context) {
 		resp := types.PutSuccesResp{
 			Message:        "Added successfully",
 			Replaced:       replaced,
-			CausalMetadata: utils.Vc,
+			CausalMetadata: utils.MapToString(utils.Vc),
 		}
 		c.JSON(http.StatusCreated, resp)
 		return
@@ -157,7 +156,6 @@ func PutKVHandler(c *gin.Context) {
 }
 
 func syncStoreAndVc(causalMetadata map[string]int) {
-	fmt.Print("syncStoreAndVc")
 	for key, val := range causalMetadata {
 		if utils.Vc[key] < val {
 			for _, replica := range utils.View.Views {
@@ -189,7 +187,7 @@ func syncStoreAndVc(causalMetadata map[string]int) {
 	}
 }
 
-func incrementVCPutSteps(key, val string, causalMetadata map[string]int) {
+func incrementVCPutSteps(key, val string, causalMetadata string) {
 	var down []string
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {
@@ -207,7 +205,7 @@ func incrementVCPutSteps(key, val string, causalMetadata map[string]int) {
 	}
 }
 
-func incrementVCDeleteSteps(key string, causalMetadata map[string]int) {
+func incrementVCDeleteSteps(key string, causalMetadata string) {
 	var down []string
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {

@@ -2,55 +2,55 @@ package types
 
 // key-val req res types
 type GetSuccesResp struct {
-	Exists         bool           `json:"doesExist"`
-	Message        string         `json:"message,omitempty"`
-	Value          string         `json:"value,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Exists         bool   `json:"doesExist"`
+	Message        string `json:"message,omitempty"`
+	Value          string `json:"value,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type GetFailResp struct {
-	Exists         bool           `json:"doesExist"`
-	Message        string         `json:"message,omitempty"`
-	Error          string         `json:"error,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Exists         bool   `json:"doesExist"`
+	Message        string `json:"message,omitempty"`
+	Error          string `json:"error,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type GetReq struct {
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type DeleteSuccesResp struct {
-	Exists         bool           `json:"doesExist"`
-	Message        string         `json:"message,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Exists         bool   `json:"doesExist"`
+	Message        string `json:"message,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type DeleteFailResp struct {
-	Exists         bool           `json:"doesExist"`
-	Message        string         `json:"message,omitempty"`
-	Error          string         `json:"error,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Exists         bool   `json:"doesExist"`
+	Message        string `json:"message,omitempty"`
+	Error          string `json:"error,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type DeleteReq struct {
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type PutRequest struct {
-	Value          string         `json:"value"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Value          string `json:"value"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type PutSuccesResp struct {
-	Replaced       bool           `json:"replaced"`
-	Message        string         `json:"message,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Replaced       bool   `json:"replaced"`
+	Message        string `json:"message,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 type PutFailResp struct {
-	Message        string         `json:"message,omitempty"`
-	Error          string         `json:"error,omitempty"`
-	CausalMetadata map[string]int `json:"causal-metadata"`
+	Message        string `json:"message,omitempty"`
+	Error          string `json:"error,omitempty"`
+	CausalMetadata string `json:"causal-metadata"`
 }
 
 // views req res types

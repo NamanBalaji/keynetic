@@ -1,3 +1,4 @@
+from re import T
 import unittest
 import requests
 import time
@@ -59,15 +60,25 @@ def disconnectFromNetwork(subnetName, instanceName):
     os.system(command)
 
 ############################### View Comparison Function ###########################################################
+def compareLists(list1, list2):
+    for x in set(list1 + list2):
+        if list1.count(x) != list2.count(x):
+            return False
+    return True
+
+def getPairs(data, delimeter):
+    pair = data.split(delimeter)
+    return pair
+
 def compareViews(returnedView, expectedView):
-    expectedView = expectedView.split(',')
-    if (type(returnedView) is not list):
-        returnedView = returnedView.split(',')
-    else:
-        returnedView = returnedView
-    returnedView.sort()
-    expectedView.sort()
-    return returnedView == expectedView
+    rv = getPairs(returnedView, ",")
+    ev = getPairs(expectedView, ",")
+    return compareLists(rv, ev)
+    
+def compareCausalMetadata(returnedData, expectedData):
+    returnedPair = getPairs(returnedData, "/")
+    expectedPair = getPairs(expectedData, "/")
+    return compareLists(returnedPair, expectedPair)
 
 ################################# Unit Test Class ############################################################
 
@@ -199,21 +210,21 @@ class TestHW3(unittest.TestCase):
         # get the view from replica1
         baseUrl  = hostBaseUrl + ':' + replica1HostPort + '/key-value-store-view'
 
-        response = requests.get( baseUrl)
+        response = requests.get(baseUrl)
         responseInJson = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertTrue(compareViews(responseInJson['view'], view))
 
         # get the view from replica2
         baseUrl  = hostBaseUrl + ':' + replica2HostPort + '/key-value-store-view'
-        response = requests.get( baseUrl)
+        response = requests.get(baseUrl)
         responseInJson = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertTrue(compareViews(responseInJson['view'], view))
 
         # get the view from replica3
         baseUrl  = hostBaseUrl + ':' + replica3HostPort + '/key-value-store-view'
-        response = requests.get( baseUrl)
+        response = requests.get(baseUrl)
         responseInJson = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertTrue(compareViews(responseInJson['view'], view))
@@ -282,7 +293,7 @@ class TestHW3(unittest.TestCase):
         first_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(first_get_value, 'myvalue1')
-        self.assertEqual(first_get_causal_metadata, put_causal_metadata)
+        self.assertEqual(compareCausalMetadata(first_get_causal_metadata, put_causal_metadata), True)
 
         time.sleep(10)
 
@@ -297,7 +308,7 @@ class TestHW3(unittest.TestCase):
         second_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(second_get_value, 'myvalue1')
-        self.assertEqual(second_get_causal_metadata, first_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(second_get_causal_metadata, first_get_causal_metadata), True)
 
         print("\n###################### Getting mykey1 from replica3 ######################\n")
 
@@ -310,7 +321,7 @@ class TestHW3(unittest.TestCase):
         third_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(third_get_value, 'myvalue1')
-        self.assertEqual(third_get_causal_metadata, second_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(third_get_causal_metadata, second_get_causal_metadata), True)
 
 
         print("\n###################### Putting mykey1/myvalue2 to the store ######################\n")
@@ -333,7 +344,7 @@ class TestHW3(unittest.TestCase):
         fourth_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(fourth_get_value, 'myvalue2')
-        self.assertEqual(fourth_get_causal_metadata, second_put_causal_metadata)
+        self.assertEqual(compareCausalMetadata(fourth_get_causal_metadata, second_put_causal_metadata), True)
 
         time.sleep(10)
 
@@ -348,7 +359,7 @@ class TestHW3(unittest.TestCase):
         fifth_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(fifth_get_value, 'myvalue2')
-        self.assertEqual(fifth_get_causal_metadata, fourth_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(fifth_get_causal_metadata, fourth_get_causal_metadata), True)
 
         print("\n###################### Getting mykey1 from replica3 ######################\n")
 
@@ -361,7 +372,7 @@ class TestHW3(unittest.TestCase):
         sixth_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(sixth_get_value, 'myvalue2')
-        self.assertEqual(sixth_get_causal_metadata, fifth_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(sixth_get_causal_metadata, fifth_get_causal_metadata), True)
 
     ########################## Run tests #######################################################
     def test_d_causal_consistency(self):
@@ -406,7 +417,7 @@ class TestHW3(unittest.TestCase):
         first_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(first_get_value, 'bar')
-        self.assertEqual(first_get_causal_metadata, second_put_causal_metadata)
+        self.assertEqual(compareCausalMetadata(first_get_causal_metadata, second_put_causal_metadata), True)
 
         print("\n###################### Getting k1 from replica2 ######################\n")
 
@@ -419,7 +430,7 @@ class TestHW3(unittest.TestCase):
         second_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(second_get_value, 'bar')
-        self.assertEqual(second_get_causal_metadata, first_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(second_get_causal_metadata, first_get_causal_metadata), True)
 
         print("\n###################### Getting k1 from replica3 ######################\n")
 
@@ -432,7 +443,7 @@ class TestHW3(unittest.TestCase):
         third_get_causal_metadata = responseInJson['causal-metadata']
         self.assertEqual(response.status_code, 200)
         self.assertEqual(third_get_value, 'bar')
-        self.assertEqual(third_get_causal_metadata, second_get_causal_metadata)
+        self.assertEqual(compareCausalMetadata(third_get_causal_metadata, second_get_causal_metadata), True)
 
     def setUp(self):
         print("\n###################### Running replicas ######################\n")

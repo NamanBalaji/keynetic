@@ -15,7 +15,10 @@ func InitStore() {
 }
 
 func SetStore(newStore map[string]string) {
-	Store.Database = newStore
+	if newStore != nil {
+		Store.Database = newStore
+	}
+
 }
 
 func InitViews(v []string, sAddr string) {

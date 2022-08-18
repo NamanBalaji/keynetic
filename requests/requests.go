@@ -38,7 +38,7 @@ func BroadcastDeleteView(addrSend string, addrDelete ...string) (string, error) 
 	defer can()
 
 	for _, v := range addrDelete {
-		url := fmt.Sprintf("http://%s/broadcast-delete/%s", addrSend, v)
+		url := fmt.Sprintf("http://%s/broadcast-view/%s", addrSend, v)
 		req, _ := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 		_, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -53,7 +53,7 @@ func BroadcastDeleteView(addrSend string, addrDelete ...string) (string, error) 
 func BroadcastPutView(addrSend, addrPut string) error {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
-	url := fmt.Sprintf("http://%s/broadcast-put/%s", addrSend, addrPut)
+	url := fmt.Sprintf("http://%s/broadcast-view/%s", addrSend, addrPut)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, nil)
 	_, err := http.DefaultClient.Do(req)
 	return err
@@ -78,7 +78,7 @@ func GetVectorClock(addr string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
-func BroadcastPutKey(key, val, replica string, causalMetadat map[string]int) error {
+func BroadcastPutKey(key, val, replica string, causalMetadat string) error {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
 
@@ -94,7 +94,7 @@ func BroadcastPutKey(key, val, replica string, causalMetadat map[string]int) err
 	return err
 }
 
-func BroadcastDeleteKey(key, replica string, causalMetadat map[string]int) error {
+func BroadcastDeleteKey(key, replica string, causalMetadat string) error {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
 
