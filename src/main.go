@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -18,7 +19,7 @@ const port = "8085"
 
 func main() {
 
-	views := strings.Split(os.Getenv("VIEWS"), ",")
+	views := strings.Split(os.Getenv("VIEW"), ",")
 	socketAddr := os.Getenv("SOCKET_ADDRESS")
 
 	utils.InitViews(views, socketAddr)
@@ -45,9 +46,17 @@ func main() {
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {
 			res, err := requests.GetKeyValueStore(replica)
-			if err != nil {
-				json.NewDecoder(res.Body).Decode(&storeRes)
-				utils.SetStore(storeRes.Store)
+			if err == nil {
+				jsonData, err := io.ReadAll(res.Body)
+				if err != nil {
+					log.Printf("invalid request body [ERROR]: %s", err)
+					return
+				}
+				err = json.Unmarshal(jsonData, &storeRes)
+				if err != nil {
+					log.Printf("invalid body format [ERROR]: %s", err)
+					return
+				}
 				break
 			}
 		}
@@ -58,13 +67,24 @@ func main() {
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {
 			res, err := requests.GetVectorClock(replica)
-			if err != nil {
-				json.NewDecoder(res.Body).Decode(&vectorClockRes)
-				utils.SetVectorClock(vectorClockRes.VectorClock)
+			if err == nil {
+				jsonData, err := io.ReadAll(res.Body)
+				if err != nil {
+					log.Printf("invalid request body [ERROR]: %s", err)
+					return
+				}
+				err = json.Unmarshal(jsonData, &vectorClockRes)
+				if err != nil {
+					log.Printf("invalid body format [ERROR]: %s", err)
+					return
+				}
 				break
 			}
 		}
 	}
+
+	utils.SetStore(storeRes.Store)
+	utils.SetVectorClock(vectorClockRes.VectorClock)
 
 	log.Printf("HTTP server started on port %s", endpoint)
 	_ = server.ListenAndServe()

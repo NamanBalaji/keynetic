@@ -1,12 +1,15 @@
 package requests
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/NamanBalaji/keynetic/types"
 	"github.com/NamanBalaji/keynetic/utils"
 )
 
@@ -73,4 +76,36 @@ func GetVectorClock(addr string) (*http.Response, error) {
 	url := fmt.Sprintf("http://%s/vector-clock", addr)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	return http.DefaultClient.Do(req)
+}
+
+func BroadcastPutKey(key, val, replica string, causalMetadat map[string]int) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.PutRequest{
+		Value:          val,
+		CausalMetadata: causalMetadat,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s/broadcast-kv/%s", replica, key)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+	return err
+}
+
+func BroadcastDeleteKey(key, replica string, causalMetadat map[string]int) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.PutRequest{
+		CausalMetadata: causalMetadat,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s/broadcast-kv/%s", replica, key)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodDelete, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
 }

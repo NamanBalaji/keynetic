@@ -22,6 +22,9 @@ func InitMainRouter() *gin.Engine {
 		kvApi.PUT("/:key", handlers.PutKVHandler)
 	}
 
+	r.PUT("/broadcast-kv/:key", handlers.BroadcastKeyPut)
+	r.DELETE("/broadcast-kv/:key", handlers.BroadcastKeyDelete)
+
 	r.GET("/store", handlers.GetStoreHandler)
 	r.GET("/vector-clock", handlers.GetVectorClock)
 
