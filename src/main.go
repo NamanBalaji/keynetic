@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/NamanBalaji/keynetic/requests"
@@ -21,8 +22,10 @@ func main() {
 
 	views := strings.Split(os.Getenv("VIEW"), ",")
 	socketAddr := os.Getenv("SOCKET_ADDRESS")
+	shardCount, _ := strconv.Atoi(os.Getenv("SHARD_COUNT"))
 
 	utils.InitViews(views, socketAddr)
+	utils.InitShard(shardCount, socketAddr)
 	utils.InitStore()
 	utils.InitVectorClock(views)
 
