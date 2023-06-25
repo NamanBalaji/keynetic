@@ -35,5 +35,13 @@ func InitMainRouter() *gin.Engine {
 	r.PUT("/key-value-store-view", handlers.PutViewHandler)
 	r.DELETE("/key-value-store-view", handlers.DeleteViewHandler)
 
+	shardApi := r.Group("/key-value-store-shard")
+	{
+		shardApi.GET("/shard-ids", handlers.GetShardIds)
+		shardApi.GET("/node-shard-id", handlers.GetNodeShardId)
+		shardApi.GET("/shard-id-members/:shardId", handlers.GetShardMembers)
+		shardApi.GET("/shard-id-key-count", handlers.GetShardKeyCount)
+	}
+
 	return r
 }

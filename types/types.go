@@ -85,3 +85,27 @@ type GetStoreResponse struct {
 type GetVectorClockResponse struct {
 	VectorClock map[string]int `json:"vectorClock"`
 }
+
+type GetShardIdsResponse struct {
+	Message  string `json:"message,omitempty"`
+	ShardIds []int  `json:"shard-ids"`
+}
+
+type GetNodeShardIdResponse struct {
+	Message string `json:"message,omitempty"`
+	ShardID int    `json:"shard-id"`
+}
+
+type GetShardIdMembersResponse struct {
+	Message        string   `json:"message,omitempty"`
+	ShardIdMembers []string `json:"shard-id-members"`
+}
+
+type GetShardIDKeyCountResponse struct {
+	Message  string `json:"message,omitempty"`
+	KeyCount int    `json:"shard-id-key-count"`
+}
+
+type ShardAddMemberRequest struct {
+	SocketAddress string `json:"socket-address"`
+}
