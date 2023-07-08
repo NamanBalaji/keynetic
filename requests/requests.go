@@ -119,7 +119,41 @@ func BroadcastPutShard(replica, socketAddr string, shardId int) error {
 	}
 	json, _ := json.Marshal(body)
 
-	url := fmt.Sprintf("http://%s//broadcast-shard/%d", replica, shardId)
+	url := fmt.Sprintf("http://%s/broadcast-shard/%d", replica, shardId)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
+}
+
+func BroadcstReshardShardPut(updateShard string, shards map[int][]string) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.ReshardShardRequest{
+		Shards: shards,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s//broadcast-reshard/shard", updateShard)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
+}
+
+func BroadcstReshardStorePut(updateShard string, store map[string]string) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.ReshardStoreRequest{
+		Store: store,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s//broadcast-reshard/store", updateShard)
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
 	_, err := http.DefaultClient.Do(req)

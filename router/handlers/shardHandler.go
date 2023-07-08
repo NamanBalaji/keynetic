@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -122,4 +123,113 @@ func ShardAddMember(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func ReshardHandler(c *gin.Context) {
+	jsonData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Printf("invalid request body [ERROR]: %s", err)
+		return
+	}
+
+	var body types.ReshardRequest
+	err = json.Unmarshal(jsonData, &body)
+	if err != nil {
+		log.Printf("invalid body format [ERROR]: %s", err)
+		return
+	}
+
+	if len(utils.View.Views)/body.ShardCount >= 2 {
+		// get all key value
+		for shardId, shardList := range utils.Shard.Shards {
+			if !utils.IsReplicaInShard(utils.View.SocketAddr, shardId, utils.Shard.Shards) {
+				for _, shard := range shardList {
+					var storeRes types.GetStoreResponse
+					res, err := requests.GetKeyValueStore(shard)
+					if err == nil {
+						jsonData, _ := io.ReadAll(res.Body)
+						json.Unmarshal(jsonData, &storeRes)
+					}
+					for k, v := range storeRes.Store {
+						utils.Store.Put(k, v)
+					}
+				}
+			}
+		}
+
+		// empty shardlist
+		newShardCount := math.Max(float64(utils.Shard.ShardCount), float64(body.ShardCount))
+		for i := 0; i < int(newShardCount); i++ {
+			utils.Shard.Shards[i] = []string{}
+		}
+
+		// empty vector clock
+		for k := range utils.Vc {
+			utils.Vc[k] = 0
+		}
+
+		utils.Shard.ShardCount = int(newShardCount)
+
+		nodesInShard := len(utils.View.Views) / utils.Shard.ShardCount
+		nodesSoFar := 0
+		shardIdx := 1
+
+		for _, view := range utils.View.Views {
+			if shardIdx <= utils.Shard.ShardCount {
+				if view == utils.View.SocketAddr {
+					utils.Shard.ShardID = shardIdx
+				}
+
+				if nodesSoFar < nodesInShard {
+					utils.Shard.Shards[shardIdx] = append(utils.Shard.Shards[shardIdx], view)
+					nodesSoFar++
+				} else {
+					shardIdx++
+					if shardIdx <= utils.Shard.ShardCount {
+						nodesSoFar = 0
+						utils.Shard.Shards[shardIdx] = append(utils.Shard.Shards[shardIdx], view)
+						nodesSoFar++
+						if view == utils.View.SocketAddr {
+							utils.Shard.ShardID = shardIdx
+						}
+					}
+				}
+			}
+		}
+
+		if (len(utils.View.Views) % utils.Shard.ShardCount) == 1 {
+			utils.Shard.Shards[shardIdx-1] = append(utils.Shard.Shards[shardIdx-1], utils.View.Views[len(utils.View.Views)-1])
+		}
+	}
+
+	for shard := range utils.Shard.Shards {
+		tempKvStore := make(map[string]string)
+		for k := range utils.Store.Database {
+			if utils.Shard.HashShardIndex(k) == shard {
+				tempKvStore[k] = utils.Store.Database[k]
+			}
+		}
+
+		for _, updatedShard := range utils.Shard.Shards[shard] {
+			if updatedShard != utils.View.SocketAddr {
+				requests.BroadcstReshardShardPut(updatedShard, utils.Shard.Shards)
+				requests.BroadcstReshardStorePut(updatedShard, tempKvStore)
+			}
+		}
+	}
+
+	tempKvStore := make(map[string]string)
+	for k := range utils.Store.Database {
+		if utils.Shard.HashShardIndex(k) == utils.Shard.ShardID {
+			tempKvStore[k] = utils.Store.Database[k]
+		}
+	}
+
+	utils.SetStore(tempKvStore)
+
+	resp := types.ReshardResponse{
+		Message: "Resharding done successfully",
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

@@ -109,3 +109,19 @@ type GetShardIDKeyCountResponse struct {
 type ShardAddMemberRequest struct {
 	SocketAddress string `json:"socket-address"`
 }
+
+type ReshardRequest struct {
+	ShardCount int `json:"shard-count"`
+}
+
+type ReshardStoreRequest struct {
+	Store map[string]string `json:"store"`
+}
+
+type ReshardShardRequest struct {
+	Shards map[int][]string `json:"shards"`
+}
+
+type ReshardResponse struct {
+	Message string `json:"message,omitempty"`
+}

@@ -41,6 +41,15 @@ func InitMainRouter() *gin.Engine {
 		shardApi.GET("/node-shard-id", handlers.GetNodeShardId)
 		shardApi.GET("/shard-id-members/:shardId", handlers.GetShardMembers)
 		shardApi.GET("/shard-id-key-count", handlers.GetShardKeyCount)
+		shardApi.PUT("/reshard", handlers.ReshardHandler)
+	}
+
+	r.PUT("/broadcast-shard/:shardId", handlers.BroadcastShardPut)
+
+	broadcastReshardApi := r.Group("/broadcast-reshard")
+	{
+		broadcastReshardApi.PUT("/shard", handlers.ReshardShardPutHandler)
+		broadcastReshardApi.PUT("/store", handlers.ReshardStorePutHandler)
 	}
 
 	return r

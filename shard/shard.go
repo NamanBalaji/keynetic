@@ -1,5 +1,9 @@
 package shard
 
+import (
+	"hash/fnv"
+)
+
 type Shard struct {
 	ShardCount int
 	ShardID    int
@@ -58,4 +62,16 @@ func NewShard(shardCount int, socketAddr string, views []string) *Shard {
 	}
 
 	return &s
+}
+
+func (s *Shard) Clear() {
+	s.Shards = make(map[int][]string)
+	s.ShardCount = 0
+	s.ShardID = -1
+}
+
+func (s Shard) HashShardIndex(key string) int {
+	hash := fnv.New32a()
+	hash.Write([]byte(key))
+	return (int(hash.Sum32()) % len(s.Shards)) + 1
 }

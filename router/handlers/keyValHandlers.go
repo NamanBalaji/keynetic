@@ -136,6 +136,7 @@ func PutKVHandler(c *gin.Context) {
 
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
 	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc))
+
 	if replaced {
 		resp := types.PutSuccesResp{
 			Message:        "Updated successfully",
@@ -188,9 +189,15 @@ func syncStoreAndVc(causalMetadata map[string]int) {
 }
 
 func incrementVCPutSteps(key, val string, causalMetadata string) {
+	shardIdx := utils.Shard.HashShardIndex(key)
+
+	if shardIdx != utils.Shard.ShardID {
+
+	}
+
 	var down []string
 	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
+		if utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) && replica != utils.View.SocketAddr {
 			err := requests.BroadcastPutKey(key, val, replica, causalMetadata)
 			if err != nil {
 				down = append(down, replica)

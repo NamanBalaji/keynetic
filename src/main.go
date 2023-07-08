@@ -32,6 +32,7 @@ func main() {
 	routesInit := router.InitMainRouter()
 
 	endpoint := fmt.Sprintf(":%s", port)
+
 	server := &http.Server{
 		Addr:    endpoint,
 		Handler: routesInit,
@@ -50,7 +51,7 @@ func main() {
 	// ask for a replicas key value store
 	if utils.Shard.ShardID != -1 {
 		for _, replica := range utils.View.Views {
-			if replica != utils.View.SocketAddr && isReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
+			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
 				res, err := requests.GetKeyValueStore(replica)
 				if err == nil {
 					jsonData, err := io.ReadAll(res.Body)
@@ -70,7 +71,7 @@ func main() {
 
 		// ask for a replicas vector clock
 		for _, replica := range utils.View.Views {
-			if replica != utils.View.SocketAddr && isReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
+			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
 				res, err := requests.GetVectorClock(replica)
 				if err == nil {
 					jsonData, err := io.ReadAll(res.Body)
@@ -96,19 +97,4 @@ func main() {
 
 	log.Printf("HTTP server started on port %s", endpoint)
 	_ = server.ListenAndServe()
-}
-
-func isReplicaInShard(replica string, shardId int, shardMap map[int][]string) bool {
-	shards, ok := shardMap[shardId]
-	if !ok {
-		return false
-	}
-
-	for _, r := range shards {
-		if r == replica {
-			return true
-		}
-	}
-
-	return false
 }
