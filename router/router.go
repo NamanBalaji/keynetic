@@ -41,6 +41,7 @@ func InitMainRouter() *gin.Engine {
 		shardApi.GET("/node-shard-id", handlers.GetNodeShardId)
 		shardApi.GET("/shard-id-members/:shardId", handlers.GetShardMembers)
 		shardApi.GET("/shard-id-key-count", handlers.GetShardKeyCount)
+		shardApi.PUT("/add-member/:shardId", handlers.ShardAddMember)
 		shardApi.PUT("/reshard", handlers.ReshardHandler)
 	}
 
