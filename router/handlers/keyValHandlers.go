@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -61,7 +63,8 @@ func GetKVHandler(c *gin.Context) {
 		}
 
 		if inserted {
-			c.JSON(getKeyRes.StatusCode, getKeyRes.Body)
+			respbody, _ := ioutil.ReadAll(getKeyRes.Body)
+			c.Data(getKeyRes.StatusCode, "application/json", respbody)
 			return
 		}
 
@@ -117,14 +120,15 @@ func DeleteKVHandler(c *gin.Context) {
 		index := 0
 
 		var down []string
-		var putKeyRes *http.Response
+		var delKeyResp *http.Response
 
 		for !deleted && index < len(utils.Shard.Shards[deleteShard]) {
 			node := utils.Shard.Shards[deleteShard][index]
 			if node != utils.View.SocketAddr {
-				res, err := requests.PutOrDeleteKey(node, key, c.Request, http.MethodDelete)
+				json, _ := json.Marshal(body)
+				res, err := requests.PutOrDeleteKey(node, key, bytes.NewBuffer(json), http.MethodDelete)
 				if err == nil {
-					putKeyRes = res
+					delKeyResp = res
 					deleted = true
 				} else {
 					down = append(down, node)
@@ -142,7 +146,8 @@ func DeleteKVHandler(c *gin.Context) {
 		}
 
 		if deleted {
-			c.JSON(putKeyRes.StatusCode, putKeyRes.Body)
+			respbody, _ := ioutil.ReadAll(delKeyResp.Body)
+			c.Data(delKeyResp.StatusCode, "application/json", respbody)
 			return
 		}
 
@@ -180,6 +185,7 @@ func PutKVHandler(c *gin.Context) {
 	jsonData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Printf("invalid request body [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
@@ -187,6 +193,7 @@ func PutKVHandler(c *gin.Context) {
 	err = json.Unmarshal(jsonData, &body)
 	if err != nil {
 		log.Printf("invalid body format [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
@@ -204,7 +211,8 @@ func PutKVHandler(c *gin.Context) {
 		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
 			node := utils.Shard.Shards[insertShard][index]
 			if node != utils.View.SocketAddr {
-				res, err := requests.PutOrDeleteKey(node, key, c.Request, http.MethodPut)
+				json, _ := json.Marshal(body)
+				res, err := requests.PutOrDeleteKey(node, key, bytes.NewBuffer(json), http.MethodPut)
 				if err == nil {
 					putKeyRes = res
 					inserted = true
@@ -224,7 +232,8 @@ func PutKVHandler(c *gin.Context) {
 		}
 
 		if inserted {
-			c.JSON(putKeyRes.StatusCode, putKeyRes.Body)
+			respbody, _ := ioutil.ReadAll(putKeyRes.Body)
+			c.Data(putKeyRes.StatusCode, "application/json", respbody)
 			return
 		}
 
@@ -264,6 +273,7 @@ func PutKVHandler(c *gin.Context) {
 			Message:        "Updated successfully",
 			Replaced:       replaced,
 			CausalMetadata: utils.MapToString(utils.Vc),
+			ShardId:        utils.Shard.ShardID,
 		}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -272,6 +282,7 @@ func PutKVHandler(c *gin.Context) {
 			Message:        "Added successfully",
 			Replaced:       replaced,
 			CausalMetadata: utils.MapToString(utils.Vc),
+			ShardId:        utils.Shard.ShardID,
 		}
 		c.JSON(http.StatusCreated, resp)
 		return

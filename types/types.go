@@ -45,6 +45,7 @@ type PutSuccesResp struct {
 	Replaced       bool   `json:"replaced"`
 	Message        string `json:"message,omitempty"`
 	CausalMetadata string `json:"causal-metadata"`
+	ShardId        int    `json:"shard-id"`
 }
 
 type PutFailResp struct {
@@ -91,7 +92,7 @@ type GetShardResponse struct {
 }
 
 type GetShardIdsResponse struct {
-	Message  string `json:"message,omitempty"`
+	Message  string `json:"message"`
 	ShardIds []int  `json:"shard-ids"`
 }
 
