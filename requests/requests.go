@@ -69,6 +69,15 @@ func GetKeyValueStore(addr string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
+func GetShard(addr string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/Shard", addr)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}
+
 func GetVectorClock(addr string) (*http.Response, error) {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
@@ -110,12 +119,13 @@ func BroadcastDeleteKey(key, replica string, causalMetadat string) error {
 	return err
 }
 
-func BroadcastPutShard(replica, socketAddr string, shardId int) error {
+func BroadcastPutShard(replica, socketAddr, clientAddr string, shardId int) error {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
 
-	body := types.ShardAddMemberRequest{
+	body := types.BroadcastShardPutRequest{
 		SocketAddress: socketAddr,
+		ClientAddress: clientAddr,
 	}
 	json, _ := json.Marshal(body)
 
@@ -159,4 +169,31 @@ func BroadcstReshardStorePut(updateShard string, store map[string]string) error 
 	_, err := http.DefaultClient.Do(req)
 
 	return err
+}
+
+func GetShardKeyCount(replica string, shardId int) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/key-value-store-shard/shard-id-key-count/%d", replica, shardId)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}
+
+func GetKey(replica string, key string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s//key-value-store/%s", replica, key)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}
+
+func PutOrDeleteKey(replica, key string, request *http.Request, method string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s//key-value-store/%s", replica, key)
+	req, _ := http.NewRequestWithContext(ctx, method, url, request.Body)
+	return http.DefaultClient.Do(req)
 }

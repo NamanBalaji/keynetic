@@ -27,8 +27,50 @@ func GetKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
 	key := c.Param("key")
+
+	insertShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != insertShard {
+		inserted := false
+		index := 0
+
+		var down []string
+		var getKeyRes *http.Response
+
+		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
+			node := utils.Shard.Shards[insertShard][index]
+			if node != utils.View.SocketAddr {
+				res, err := requests.GetKey(node, key)
+				if err == nil {
+					getKeyRes = res
+					inserted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if inserted {
+			c.JSON(getKeyRes.StatusCode, getKeyRes.Body)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), insertShard)
+
 	val, err := utils.Store.Get(key)
 	if err != nil {
 		resp := types.GetFailResp{
@@ -66,9 +108,49 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
-
 	key := c.Param("key")
+
+	deleteShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != deleteShard {
+		deleted := false
+		index := 0
+
+		var down []string
+		var putKeyRes *http.Response
+
+		for !deleted && index < len(utils.Shard.Shards[deleteShard]) {
+			node := utils.Shard.Shards[deleteShard][index]
+			if node != utils.View.SocketAddr {
+				res, err := requests.PutOrDeleteKey(node, key, c.Request, http.MethodDelete)
+				if err == nil {
+					putKeyRes = res
+					deleted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if deleted {
+			c.JSON(putKeyRes.StatusCode, putKeyRes.Body)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), deleteShard)
 
 	_, err = utils.Store.Get(key)
 	if err != nil {
@@ -82,7 +164,7 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCDeleteSteps(key, utils.MapToString(utils.Vc))
+	incrementVCDeleteSteps(key, utils.MapToString(utils.Vc), deleteShard)
 	utils.Store.Delete(key)
 
 	resp := types.DeleteSuccesResp{
@@ -108,9 +190,49 @@ func PutKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
-
 	key := c.Param("key")
+
+	insertShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != insertShard {
+		inserted := false
+		index := 0
+
+		var down []string
+		var putKeyRes *http.Response
+
+		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
+			node := utils.Shard.Shards[insertShard][index]
+			if node != utils.View.SocketAddr {
+				res, err := requests.PutOrDeleteKey(node, key, c.Request, http.MethodPut)
+				if err == nil {
+					putKeyRes = res
+					inserted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if inserted {
+			c.JSON(putKeyRes.StatusCode, putKeyRes.Body)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), insertShard)
 
 	if len(key) > 50 {
 		resp := types.PutFailResp{
@@ -135,7 +257,7 @@ func PutKVHandler(c *gin.Context) {
 	replaced, _ := utils.Store.Put(key, body.Value)
 
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc))
+	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc), insertShard)
 
 	if replaced {
 		resp := types.PutSuccesResp{
@@ -156,11 +278,11 @@ func PutKVHandler(c *gin.Context) {
 	}
 }
 
-func syncStoreAndVc(causalMetadata map[string]int) {
+func syncStoreAndVc(causalMetadata map[string]int, shardIdx int) {
 	for key, val := range causalMetadata {
 		if utils.Vc[key] < val {
 			for _, replica := range utils.View.Views {
-				if replica != utils.View.SocketAddr {
+				if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) {
 					var storeRes types.GetStoreResponse
 					var vectorClockRes types.GetVectorClockResponse
 
@@ -188,13 +310,7 @@ func syncStoreAndVc(causalMetadata map[string]int) {
 	}
 }
 
-func incrementVCPutSteps(key, val string, causalMetadata string) {
-	shardIdx := utils.Shard.HashShardIndex(key)
-
-	if shardIdx != utils.Shard.ShardID {
-
-	}
-
+func incrementVCPutSteps(key, val string, causalMetadata string, shardIdx int) {
 	var down []string
 	for _, replica := range utils.View.Views {
 		if utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) && replica != utils.View.SocketAddr {
@@ -212,19 +328,21 @@ func incrementVCPutSteps(key, val string, causalMetadata string) {
 	}
 }
 
-func incrementVCDeleteSteps(key string, causalMetadata string) {
+func incrementVCDeleteSteps(key string, causalMetadata string, shardIdx int) {
 	var down []string
 	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
+		if utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) && replica != utils.View.SocketAddr {
 			err := requests.BroadcastDeleteKey(key, replica, causalMetadata)
 			if err != nil {
 				down = append(down, replica)
 			}
 		}
 	}
+
 	for _, d := range down {
 		utils.View.RemoveFromView(d)
 	}
+
 	for _, replica := range utils.View.Views {
 		requests.BroadcastDeleteView(replica, down...)
 	}

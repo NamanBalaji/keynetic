@@ -61,6 +61,53 @@ func GetShardMembers(c *gin.Context) {
 
 // Handler for GET: /key-value-store-shard/shard-id-key-count/
 func GetShardKeyCount(c *gin.Context) {
+	shardId := c.Param("shardId")
+	shardIdInt, err := strconv.Atoi(shardId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
+
+		return
+	}
+
+	if utils.Shard.ShardID != shardIdInt {
+		inserted := false
+		index := 0
+
+		var down []string
+		var keyCountResponse types.GetShardKeyCountResponse
+
+		for !inserted && index < len(utils.Shard.Shards[shardIdInt]) {
+			node := utils.Shard.Shards[shardIdInt][index]
+			if node != utils.View.SocketAddr {
+				res, err := requests.GetShardKeyCount(node, shardIdInt)
+				if err == nil {
+					jsonData, _ := io.ReadAll(res.Body)
+					json.Unmarshal(jsonData, &keyCountResponse)
+					inserted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if inserted {
+			c.JSON(http.StatusOK, keyCountResponse)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
 	resp := types.GetShardIDKeyCountResponse{
 		Message:  "Key count of shard ID retrieved successfully",
 		KeyCount: len(utils.Store.Database),
@@ -96,7 +143,7 @@ func ShardAddMember(c *gin.Context) {
 	var down []string
 	for _, replica := range utils.View.Views {
 		if replica != utils.View.SocketAddr {
-			err := requests.BroadcastPutShard(replica, body.SocketAddress, shardIdInt)
+			err := requests.BroadcastPutShard(replica, body.SocketAddress, utils.View.SocketAddr, shardIdInt)
 			if err != nil {
 				down = append(down, replica)
 			}

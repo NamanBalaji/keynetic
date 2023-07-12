@@ -27,6 +27,7 @@ func InitMainRouter() *gin.Engine {
 
 	r.GET("/store", handlers.GetStoreHandler)
 	r.GET("/vector-clock", handlers.GetVectorClock)
+	r.GET("/shard", handlers.GetShard)
 
 	r.PUT("/broadcast-view/:ip", handlers.BroadcastViewPut)
 	r.DELETE("/broadcast-view/:ip", handlers.BroadcastViewDelete)
@@ -40,7 +41,7 @@ func InitMainRouter() *gin.Engine {
 		shardApi.GET("/shard-ids", handlers.GetShardIds)
 		shardApi.GET("/node-shard-id", handlers.GetNodeShardId)
 		shardApi.GET("/shard-id-members/:shardId", handlers.GetShardMembers)
-		shardApi.GET("/shard-id-key-count", handlers.GetShardKeyCount)
+		shardApi.GET("/shard-id-key-count/:shardId", handlers.GetShardKeyCount)
 		shardApi.PUT("/add-member/:shardId", handlers.ShardAddMember)
 		shardApi.PUT("/reshard", handlers.ReshardHandler)
 	}

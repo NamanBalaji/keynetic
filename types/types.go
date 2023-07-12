@@ -86,6 +86,10 @@ type GetVectorClockResponse struct {
 	VectorClock map[string]int `json:"vectorClock"`
 }
 
+type GetShardResponse struct {
+	Shard map[int][]string `json:"shard"`
+}
+
 type GetShardIdsResponse struct {
 	Message  string `json:"message,omitempty"`
 	ShardIds []int  `json:"shard-ids"`
@@ -110,6 +114,11 @@ type ShardAddMemberRequest struct {
 	SocketAddress string `json:"socket-address"`
 }
 
+type BroadcastShardPutRequest struct {
+	SocketAddress string `json:"socket-address"`
+	ClientAddress string `json:"client-address"`
+}
+
 type ReshardRequest struct {
 	ShardCount int `json:"shard-count"`
 }
@@ -124,4 +133,9 @@ type ReshardShardRequest struct {
 
 type ReshardResponse struct {
 	Message string `json:"message,omitempty"`
+}
+
+type GetShardKeyCountResponse struct {
+	Message  string `json:"message"`
+	KeyCount int    `json:"shard-id-key-count"`
 }

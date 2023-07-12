@@ -1,9 +1,5 @@
 package shard
 
-import (
-	"hash/fnv"
-)
-
 type Shard struct {
 	ShardCount int
 	ShardID    int
@@ -71,7 +67,14 @@ func (s *Shard) Clear() {
 }
 
 func (s Shard) HashShardIndex(key string) int {
-	hash := fnv.New32a()
-	hash.Write([]byte(key))
-	return (int(hash.Sum32()) % len(s.Shards)) + 1
+	return (sum([]byte(key)) % len(s.Shards)) + 1
+}
+
+func sum(bytes []byte) int {
+	total := 0
+	for _, b := range bytes {
+		total += int(b)
+	}
+
+	return total
 }

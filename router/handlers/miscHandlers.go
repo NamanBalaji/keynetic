@@ -23,3 +23,11 @@ func GetVectorClock(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, resp)
 }
+
+// Handler for GET: /shard
+func GetShard(c *gin.Context) {
+	resp := types.GetShardResponse{
+		Shard: utils.Shard.Shards,
+	}
+	c.JSON(http.StatusOK, resp)
+}
