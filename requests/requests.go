@@ -180,16 +180,7 @@ func GetShardKeyCount(replica string, shardId int) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
-func GetKey(replica string, key string) (*http.Response, error) {
-	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
-	defer can()
-
-	url := fmt.Sprintf("http://%s/key-value-store/%s", replica, key)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	return http.DefaultClient.Do(req)
-}
-
-func PutOrDeleteKey(replica, key string, body *bytes.Buffer, method string) (*http.Response, error) {
+func KeyRequest(replica, key string, body *bytes.Buffer, method string) (*http.Response, error) {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
 

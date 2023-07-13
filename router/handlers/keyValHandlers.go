@@ -19,13 +19,15 @@ func GetKVHandler(c *gin.Context) {
 	jsonData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Printf("invalid request body [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	var body types.PutRequest
+	var body types.GetReq
 	err = json.Unmarshal(jsonData, &body)
 	if err != nil {
 		log.Printf("invalid body format [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
@@ -43,7 +45,8 @@ func GetKVHandler(c *gin.Context) {
 		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
 			node := utils.Shard.Shards[insertShard][index]
 			if node != utils.View.SocketAddr {
-				res, err := requests.GetKey(node, key)
+				json, _ := json.Marshal(body)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodGet)
 				if err == nil {
 					getKeyRes = res
 					inserted = true
@@ -126,7 +129,7 @@ func DeleteKVHandler(c *gin.Context) {
 			node := utils.Shard.Shards[deleteShard][index]
 			if node != utils.View.SocketAddr {
 				json, _ := json.Marshal(body)
-				res, err := requests.PutOrDeleteKey(node, key, bytes.NewBuffer(json), http.MethodDelete)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodDelete)
 				if err == nil {
 					delKeyResp = res
 					deleted = true
@@ -212,7 +215,7 @@ func PutKVHandler(c *gin.Context) {
 			node := utils.Shard.Shards[insertShard][index]
 			if node != utils.View.SocketAddr {
 				json, _ := json.Marshal(body)
-				res, err := requests.PutOrDeleteKey(node, key, bytes.NewBuffer(json), http.MethodPut)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodPut)
 				if err == nil {
 					putKeyRes = res
 					inserted = true
