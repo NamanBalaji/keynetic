@@ -146,7 +146,7 @@ func BroadcstReshardShardPut(updateShard string, shards map[int][]string) error 
 	}
 	json, _ := json.Marshal(body)
 
-	url := fmt.Sprintf("http://%s//broadcast-reshard/shard", updateShard)
+	url := fmt.Sprintf("http://%s/broadcast-reshard/shard", updateShard)
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
 	_, err := http.DefaultClient.Do(req)
@@ -163,7 +163,7 @@ func BroadcstReshardStorePut(updateShard string, store map[string]string) error 
 	}
 	json, _ := json.Marshal(body)
 
-	url := fmt.Sprintf("http://%s//broadcast-reshard/store", updateShard)
+	url := fmt.Sprintf("http://%s/broadcast-reshard/store", updateShard)
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
 	_, err := http.DefaultClient.Do(req)

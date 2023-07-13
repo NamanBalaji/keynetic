@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"strconv"
 
@@ -186,12 +185,13 @@ func ReshardHandler(c *gin.Context) {
 		return
 	}
 
+	var storeRes types.GetStoreResponse
+
 	if len(utils.View.Views)/body.ShardCount >= 2 {
 		// get all key value
 		for shardId, shardList := range utils.Shard.Shards {
 			if !utils.IsReplicaInShard(utils.View.SocketAddr, shardId, utils.Shard.Shards) {
 				for _, shard := range shardList {
-					var storeRes types.GetStoreResponse
 					res, err := requests.GetKeyValueStore(shard)
 					if err == nil {
 						jsonData, _ := io.ReadAll(res.Body)
@@ -205,9 +205,8 @@ func ReshardHandler(c *gin.Context) {
 		}
 
 		// empty shardlist
-		newShardCount := math.Max(float64(utils.Shard.ShardCount), float64(body.ShardCount))
-		for i := 0; i < int(newShardCount); i++ {
-			utils.Shard.Shards[i] = []string{}
+		for k := range utils.Shard.Shards {
+			delete(utils.Shard.Shards, k)
 		}
 
 		// empty vector clock
@@ -215,7 +214,7 @@ func ReshardHandler(c *gin.Context) {
 			utils.Vc[k] = 0
 		}
 
-		utils.Shard.ShardCount = int(newShardCount)
+		utils.Shard.ShardCount = body.ShardCount
 
 		nodesInShard := len(utils.View.Views) / utils.Shard.ShardCount
 		nodesSoFar := 0
@@ -247,13 +246,16 @@ func ReshardHandler(c *gin.Context) {
 		if (len(utils.View.Views) % utils.Shard.ShardCount) == 1 {
 			utils.Shard.Shards[shardIdx-1] = append(utils.Shard.Shards[shardIdx-1], utils.View.Views[len(utils.View.Views)-1])
 		}
+	} else {
+		c.JSON(http.StatusBadRequest, "noy enough nodes to have redundancy in shards")
+		return
 	}
 
 	for shard := range utils.Shard.Shards {
 		tempKvStore := make(map[string]string)
-		for k := range utils.Store.Database {
+		for k, v := range utils.Store.Database {
 			if utils.Shard.HashShardIndex(k) == shard {
-				tempKvStore[k] = utils.Store.Database[k]
+				tempKvStore[k] = v
 			}
 		}
 
@@ -266,9 +268,9 @@ func ReshardHandler(c *gin.Context) {
 	}
 
 	tempKvStore := make(map[string]string)
-	for k := range utils.Store.Database {
+	for k, v := range utils.Store.Database {
 		if utils.Shard.HashShardIndex(k) == utils.Shard.ShardID {
-			tempKvStore[k] = utils.Store.Database[k]
+			tempKvStore[k] = v
 		}
 	}
 

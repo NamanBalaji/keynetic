@@ -22,7 +22,11 @@ func main() {
 
 	views := strings.Split(os.Getenv("VIEW"), ",")
 	socketAddr := os.Getenv("SOCKET_ADDRESS")
-	shardCount, _ := strconv.Atoi(os.Getenv("SHARD_COUNT"))
+	shardCount := -1
+	shardCountString := os.Getenv("SHARD_COUNT")
+	if shardCountString != "" {
+		shardCount, _ = strconv.Atoi(shardCountString)
+	}
 
 	utils.InitViews(views, socketAddr)
 	utils.InitShard(shardCount, socketAddr)

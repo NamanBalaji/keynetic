@@ -1,5 +1,7 @@
 package shard
 
+import "log"
+
 type Shard struct {
 	ShardCount int
 	ShardID    int
@@ -52,7 +54,7 @@ func NewShard(shardCount int, socketAddr string, views []string) *Shard {
 		}
 
 	} else if s.ShardID == -1 {
-		panic("shard count not specified")
+		log.Print("shard count not specified")
 	} else {
 		panic("not enough nodes to have redundancy in shards. exiting program now")
 	}
