@@ -73,7 +73,7 @@ func GetShard(addr string) (*http.Response, error) {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
 
-	url := fmt.Sprintf("http://%s/Shard", addr)
+	url := fmt.Sprintf("http://%s/shard", addr)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	return http.DefaultClient.Do(req)
 }

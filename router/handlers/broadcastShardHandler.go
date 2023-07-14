@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"strconv"
 
@@ -46,25 +45,47 @@ func BroadcastShardPut(c *gin.Context) {
 				var shardRes types.GetShardResponse
 				res, err := requests.GetShard(replica)
 				if err == nil {
-					jsonData, _ := io.ReadAll(res.Body)
-					json.Unmarshal(jsonData, &shardRes)
+					jsonData, err := io.ReadAll(res.Body)
+					if err != nil {
+						log.Printf("invalid request body [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
+					}
+					err = json.Unmarshal(jsonData, &shardRes)
+					if err != nil {
+						log.Printf("invalid body format [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
+					}
+
 					for k, v := range shardRes.Shard {
 						utils.Shard.Shards[k] = v
 					}
+
 					break
 				}
 			}
 		}
 
+		var storeRes types.GetStoreResponse
+		var vectorClockRes types.GetVectorClockResponse
+
 		for _, replica := range utils.View.Views {
 			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, shardIdInt, utils.Shard.Shards) && replica != body.ClientAddress {
-				var storeRes types.GetStoreResponse
+
 				res, err := requests.GetKeyValueStore(replica)
 				if err == nil {
-					jsonData, _ := io.ReadAll(res.Body)
-					json.Unmarshal(jsonData, &storeRes)
-					for k, v := range storeRes.Store {
-						utils.Store.Put(k, v)
+					jsonData, err := io.ReadAll(res.Body)
+					if err != nil {
+						log.Printf("invalid request body [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
+					}
+					err = json.Unmarshal(jsonData, &storeRes)
+					if err != nil {
+						log.Printf("invalid body format [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
 					}
 					break
 				}
@@ -75,19 +96,30 @@ func BroadcastShardPut(c *gin.Context) {
 		for _, replica := range utils.View.Views {
 			utils.Vc[replica] = 0
 			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, shardIdInt, utils.Shard.Shards) && replica != body.ClientAddress {
-				var vectorClockRes types.GetVectorClockResponse
+
 				res, err := requests.GetVectorClock(replica)
 				if err == nil {
-					jsonData, _ := io.ReadAll(res.Body)
-					json.Unmarshal(jsonData, &vectorClockRes)
-					for k, v := range vectorClockRes.VectorClock {
-						utils.Vc[replica] = int(math.Max(float64(utils.Vc[k]), float64(v)))
+					jsonData, err := io.ReadAll(res.Body)
+					if err != nil {
+						log.Printf("invalid request body [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
+					}
+					err = json.Unmarshal(jsonData, &vectorClockRes)
+					if err != nil {
+						log.Printf("invalid body format [ERROR]: %s", err)
+						c.JSON(http.StatusInternalServerError, err)
+						return
 					}
 					break
 				}
 
 			}
 		}
+
+		utils.SetStore(storeRes.Store)
+		utils.SetVectorClock(vectorClockRes.VectorClock)
+
 	}
 
 	addrs := utils.Shard.Shards[shardIdInt]
