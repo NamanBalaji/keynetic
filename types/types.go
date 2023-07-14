@@ -45,6 +45,7 @@ type PutSuccesResp struct {
 	Replaced       bool   `json:"replaced"`
 	Message        string `json:"message,omitempty"`
 	CausalMetadata string `json:"causal-metadata"`
+	ShardId        int    `json:"shard-id"`
 }
 
 type PutFailResp struct {
@@ -84,4 +85,58 @@ type GetStoreResponse struct {
 
 type GetVectorClockResponse struct {
 	VectorClock map[string]int `json:"vectorClock"`
+}
+
+type GetShardResponse struct {
+	Shard map[int][]string `json:"shard"`
+}
+
+type GetShardIdsResponse struct {
+	Message  string `json:"message"`
+	ShardIds []int  `json:"shard-ids"`
+}
+
+type GetNodeShardIdResponse struct {
+	Message string `json:"message,omitempty"`
+	ShardID int    `json:"shard-id"`
+}
+
+type GetShardIdMembersResponse struct {
+	Message        string   `json:"message,omitempty"`
+	ShardIdMembers []string `json:"shard-id-members"`
+}
+
+type GetShardIDKeyCountResponse struct {
+	Message  string `json:"message,omitempty"`
+	KeyCount int    `json:"shard-id-key-count"`
+}
+
+type ShardAddMemberRequest struct {
+	SocketAddress string `json:"socket-address"`
+}
+
+type BroadcastShardPutRequest struct {
+	SocketAddress string `json:"socket-address"`
+	ClientAddress string `json:"client-address"`
+}
+
+type ReshardRequest struct {
+	ShardCount int `json:"shard-count"`
+}
+
+type ReshardStoreRequest struct {
+	Store map[string]string `json:"store"`
+}
+
+type ReshardShardRequest struct {
+	Shards map[int][]string `json:"shards"`
+}
+
+type ReshardResponse struct {
+	Message string `json:"message,omitempty"`
+}
+
+type GetShardKeyCountResponse struct {
+	Message  string `json:"message"`
+	KeyCount int    `json:"shard-id-key-count"`
 }

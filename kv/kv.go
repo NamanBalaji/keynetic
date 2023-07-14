@@ -39,3 +39,7 @@ func (db *DB) Put(key string, val string) (bool, error) {
 	}
 	return false, nil
 }
+
+func (db *DB) Clear() {
+	db.Database = make(map[string]string)
+}

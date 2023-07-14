@@ -69,6 +69,15 @@ func GetKeyValueStore(addr string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
+func GetShard(addr string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/shard", addr)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}
+
 func GetVectorClock(addr string) (*http.Response, error) {
 	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
 	defer can()
@@ -108,4 +117,74 @@ func BroadcastDeleteKey(key, replica string, causalMetadat string) error {
 	_, err := http.DefaultClient.Do(req)
 
 	return err
+}
+
+func BroadcastPutShard(replica, socketAddr, clientAddr string, shardId int) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.BroadcastShardPutRequest{
+		SocketAddress: socketAddr,
+		ClientAddress: clientAddr,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s/broadcast-shard/%d", replica, shardId)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
+}
+
+func BroadcstReshardShardPut(updateShard string, shards map[int][]string) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.ReshardShardRequest{
+		Shards: shards,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s/broadcast-reshard/shard", updateShard)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
+}
+
+func BroadcstReshardStorePut(updateShard string, store map[string]string) error {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	body := types.ReshardStoreRequest{
+		Store: store,
+	}
+	json, _ := json.Marshal(body)
+
+	url := fmt.Sprintf("http://%s/broadcast-reshard/store", updateShard)
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(json))
+	_, err := http.DefaultClient.Do(req)
+
+	return err
+}
+
+func GetShardKeyCount(replica string, shardId int) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/key-value-store-shard/shard-id-key-count/%d", replica, shardId)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return http.DefaultClient.Do(req)
+}
+
+func KeyRequest(replica, key string, body *bytes.Buffer, method string) (*http.Response, error) {
+	ctx, can := context.WithTimeout(context.Background(), 1*time.Second)
+	defer can()
+
+	url := fmt.Sprintf("http://%s/key-value-store/%s", replica, key)
+	req, _ := http.NewRequestWithContext(ctx, method, url, body)
+	return http.DefaultClient.Do(req)
 }

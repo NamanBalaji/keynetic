@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -17,18 +19,64 @@ func GetKVHandler(c *gin.Context) {
 	jsonData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Printf("invalid request body [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	var body types.PutRequest
+	var body types.GetReq
 	err = json.Unmarshal(jsonData, &body)
 	if err != nil {
 		log.Printf("invalid body format [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
 	key := c.Param("key")
+
+	insertShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != insertShard {
+		inserted := false
+		index := 0
+
+		var down []string
+		var getKeyRes *http.Response
+
+		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
+			node := utils.Shard.Shards[insertShard][index]
+			if node != utils.View.SocketAddr {
+				json, _ := json.Marshal(body)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodGet)
+				if err == nil {
+					getKeyRes = res
+					inserted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if inserted {
+			respbody, _ := ioutil.ReadAll(getKeyRes.Body)
+			c.Data(getKeyRes.StatusCode, "application/json", respbody)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), insertShard)
+
 	val, err := utils.Store.Get(key)
 	if err != nil {
 		resp := types.GetFailResp{
@@ -66,9 +114,51 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
-
 	key := c.Param("key")
+
+	deleteShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != deleteShard {
+		deleted := false
+		index := 0
+
+		var down []string
+		var delKeyResp *http.Response
+
+		for !deleted && index < len(utils.Shard.Shards[deleteShard]) {
+			node := utils.Shard.Shards[deleteShard][index]
+			if node != utils.View.SocketAddr {
+				json, _ := json.Marshal(body)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodDelete)
+				if err == nil {
+					delKeyResp = res
+					deleted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if deleted {
+			respbody, _ := ioutil.ReadAll(delKeyResp.Body)
+			c.Data(delKeyResp.StatusCode, "application/json", respbody)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), deleteShard)
 
 	_, err = utils.Store.Get(key)
 	if err != nil {
@@ -82,7 +172,7 @@ func DeleteKVHandler(c *gin.Context) {
 		return
 	}
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCDeleteSteps(key, utils.MapToString(utils.Vc))
+	incrementVCDeleteSteps(key, utils.MapToString(utils.Vc), deleteShard)
 	utils.Store.Delete(key)
 
 	resp := types.DeleteSuccesResp{
@@ -98,6 +188,7 @@ func PutKVHandler(c *gin.Context) {
 	jsonData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Printf("invalid request body [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
@@ -105,12 +196,55 @@ func PutKVHandler(c *gin.Context) {
 	err = json.Unmarshal(jsonData, &body)
 	if err != nil {
 		log.Printf("invalid body format [ERROR]: %s", err)
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	syncStoreAndVc(utils.StringToMap(body.CausalMetadata))
-
 	key := c.Param("key")
+
+	insertShard := utils.Shard.HashShardIndex(key)
+
+	if utils.Shard.ShardID != insertShard {
+		inserted := false
+		index := 0
+
+		var down []string
+		var putKeyRes *http.Response
+
+		for !inserted && index < len(utils.Shard.Shards[insertShard]) {
+			node := utils.Shard.Shards[insertShard][index]
+			if node != utils.View.SocketAddr {
+				json, _ := json.Marshal(body)
+				res, err := requests.KeyRequest(node, key, bytes.NewBuffer(json), http.MethodPut)
+				if err == nil {
+					putKeyRes = res
+					inserted = true
+				} else {
+					down = append(down, node)
+				}
+
+				index++
+			}
+		}
+
+		for _, d := range down {
+			utils.View.RemoveFromView(d)
+		}
+		for _, replica := range utils.View.Views {
+			requests.BroadcastDeleteView(replica, down...)
+		}
+
+		if inserted {
+			respbody, _ := ioutil.ReadAll(putKeyRes.Body)
+			c.Data(putKeyRes.StatusCode, "application/json", respbody)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	syncStoreAndVc(utils.StringToMap(body.CausalMetadata), insertShard)
 
 	if len(key) > 50 {
 		resp := types.PutFailResp{
@@ -135,12 +269,14 @@ func PutKVHandler(c *gin.Context) {
 	replaced, _ := utils.Store.Put(key, body.Value)
 
 	utils.Vc[utils.View.SocketAddr] = utils.Vc[utils.View.SocketAddr] + 1
-	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc))
+	incrementVCPutSteps(key, body.Value, utils.MapToString(utils.Vc), insertShard)
+
 	if replaced {
 		resp := types.PutSuccesResp{
 			Message:        "Updated successfully",
 			Replaced:       replaced,
 			CausalMetadata: utils.MapToString(utils.Vc),
+			ShardId:        utils.Shard.ShardID,
 		}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -149,17 +285,18 @@ func PutKVHandler(c *gin.Context) {
 			Message:        "Added successfully",
 			Replaced:       replaced,
 			CausalMetadata: utils.MapToString(utils.Vc),
+			ShardId:        utils.Shard.ShardID,
 		}
 		c.JSON(http.StatusCreated, resp)
 		return
 	}
 }
 
-func syncStoreAndVc(causalMetadata map[string]int) {
+func syncStoreAndVc(causalMetadata map[string]int, shardIdx int) {
 	for key, val := range causalMetadata {
 		if utils.Vc[key] < val {
 			for _, replica := range utils.View.Views {
-				if replica != utils.View.SocketAddr {
+				if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) {
 					var storeRes types.GetStoreResponse
 					var vectorClockRes types.GetVectorClockResponse
 
@@ -187,10 +324,10 @@ func syncStoreAndVc(causalMetadata map[string]int) {
 	}
 }
 
-func incrementVCPutSteps(key, val string, causalMetadata string) {
+func incrementVCPutSteps(key, val string, causalMetadata string, shardIdx int) {
 	var down []string
 	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
+		if utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) && replica != utils.View.SocketAddr {
 			err := requests.BroadcastPutKey(key, val, replica, causalMetadata)
 			if err != nil {
 				down = append(down, replica)
@@ -205,19 +342,21 @@ func incrementVCPutSteps(key, val string, causalMetadata string) {
 	}
 }
 
-func incrementVCDeleteSteps(key string, causalMetadata string) {
+func incrementVCDeleteSteps(key string, causalMetadata string, shardIdx int) {
 	var down []string
 	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
+		if utils.IsReplicaInShard(replica, shardIdx, utils.Shard.Shards) && replica != utils.View.SocketAddr {
 			err := requests.BroadcastDeleteKey(key, replica, causalMetadata)
 			if err != nil {
 				down = append(down, replica)
 			}
 		}
 	}
+
 	for _, d := range down {
 		utils.View.RemoveFromView(d)
 	}
+
 	for _, replica := range utils.View.Views {
 		requests.BroadcastDeleteView(replica, down...)
 	}

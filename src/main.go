@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/NamanBalaji/keynetic/requests"
@@ -21,14 +22,21 @@ func main() {
 
 	views := strings.Split(os.Getenv("VIEW"), ",")
 	socketAddr := os.Getenv("SOCKET_ADDRESS")
+	shardCount := -1
+	shardCountString := os.Getenv("SHARD_COUNT")
+	if shardCountString != "" {
+		shardCount, _ = strconv.Atoi(shardCountString)
+	}
 
 	utils.InitViews(views, socketAddr)
+	utils.InitShard(shardCount, socketAddr)
 	utils.InitStore()
 	utils.InitVectorClock(views)
 
 	routesInit := router.InitMainRouter()
 
 	endpoint := fmt.Sprintf(":%s", port)
+
 	server := &http.Server{
 		Addr:    endpoint,
 		Handler: routesInit,
@@ -42,45 +50,50 @@ func main() {
 	}
 
 	var storeRes types.GetStoreResponse
-	// ask for a replicas key value store
-	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
-			res, err := requests.GetKeyValueStore(replica)
-			if err == nil {
-				jsonData, err := io.ReadAll(res.Body)
-				if err != nil {
-					log.Printf("invalid request body [ERROR]: %s", err)
-					return
-				}
-				err = json.Unmarshal(jsonData, &storeRes)
-				if err != nil {
-					log.Printf("invalid body format [ERROR]: %s", err)
-					return
-				}
-				break
-			}
-		}
-	}
-
 	var vectorClockRes types.GetVectorClockResponse
-	// ask for a replicas vector clock
-	for _, replica := range utils.View.Views {
-		if replica != utils.View.SocketAddr {
-			res, err := requests.GetVectorClock(replica)
-			if err == nil {
-				jsonData, err := io.ReadAll(res.Body)
-				if err != nil {
-					log.Printf("invalid request body [ERROR]: %s", err)
-					return
+
+	// ask for a replicas key value store
+	if utils.Shard.ShardID != -1 {
+		for _, replica := range utils.View.Views {
+			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
+				res, err := requests.GetKeyValueStore(replica)
+				if err == nil {
+					jsonData, err := io.ReadAll(res.Body)
+					if err != nil {
+						log.Printf("invalid request body [ERROR]: %s", err)
+						return
+					}
+					err = json.Unmarshal(jsonData, &storeRes)
+					if err != nil {
+						log.Printf("invalid body format [ERROR]: %s", err)
+						return
+					}
+					break
 				}
-				err = json.Unmarshal(jsonData, &vectorClockRes)
-				if err != nil {
-					log.Printf("invalid body format [ERROR]: %s", err)
-					return
-				}
-				break
 			}
 		}
+
+		// ask for a replicas vector clock
+		for _, replica := range utils.View.Views {
+			if replica != utils.View.SocketAddr && utils.IsReplicaInShard(replica, utils.Shard.ShardID, utils.Shard.Shards) {
+				res, err := requests.GetVectorClock(replica)
+				if err == nil {
+					jsonData, err := io.ReadAll(res.Body)
+					if err != nil {
+						log.Printf("invalid request body [ERROR]: %s", err)
+						return
+					}
+					err = json.Unmarshal(jsonData, &vectorClockRes)
+					if err != nil {
+						log.Printf("invalid body format [ERROR]: %s", err)
+						return
+					}
+					break
+				}
+			}
+		}
+	} else {
+		log.Printf("shardID uninitialized, will update kvStore and vector clocks later")
 	}
 
 	utils.SetStore(storeRes.Store)

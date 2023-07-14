@@ -31,3 +31,18 @@ func StringToMap(s string) map[string]int {
 	}
 	return m
 }
+
+func IsReplicaInShard(replica string, shardId int, shardMap map[int][]string) bool {
+	shards, ok := shardMap[shardId]
+	if !ok {
+		return false
+	}
+
+	for _, r := range shards {
+		if r == replica {
+			return true
+		}
+	}
+
+	return false
+}
